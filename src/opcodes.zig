@@ -21,6 +21,8 @@ fn OP_1x(self: *Intel4004) void {
         return;
     }
 
+    if (self.step != 5) return;
+
     const cond_int: u4 = @intCast(self.prev_instr & 0x0F);
     const conditions: conditional = .{
         .invert    = (cond_int & 1) == 1,
@@ -57,8 +59,10 @@ fn OP_FIM(self: *Intel4004, reg: u8) void {
         return;
     }
 
-    self.reg[reg + 0] = (self.instr & 0xF0) >> 4;
-    self.reg[reg + 1] = (self.instr & 0x0F) >> 0;
+    if (self.step != 5) return;
+
+    self.reg[reg + 0] = @intCast((self.instr & 0xF0) >> 4);
+    self.reg[reg + 1] = @intCast((self.instr & 0x0F) >> 0);
 
     self.prev_instr = 0;
 }
@@ -68,18 +72,25 @@ fn OP_SRC(self: *Intel4004, reg: u8) void {
         5 => {}, // send SRC instruction?
         6 => self.buffer = self.reg[reg + 0],
         7 => self.buffer = self.reg[reg + 1],
+        else => {}
     }
 }
 
 fn OP_2x(self: *Intel4004) void {
     const amnt: u8 = (self.instr >> 1) << 1;
-    if (self.instr % 2) {
+    if (self.instr % 2 == 0) {
         OP_FIM(self, amnt);
     } else {
         OP_SRC(self, amnt);
     }
 }
 
-const op_list: [16]opfunc = [_]opfunc{
-    OP_0x, OP_1x, OP_2x,
+
+fn TEMP(self: *Intel4004) void { _ = self; }
+
+pub const op_list: [16]opfunc = [_]opfunc{
+    OP_0x, OP_1x, OP_2x, TEMP,
+    TEMP , TEMP , TEMP , TEMP,
+    TEMP , TEMP , TEMP , TEMP,
+    TEMP , TEMP , TEMP , TEMP
 };

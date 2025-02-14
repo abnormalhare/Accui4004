@@ -11,7 +11,7 @@ const Computer = struct {
     roms: [16]Intel4004,
 
     fn set_bus(self: *Computer, isCpu: bool, romNum: u4) void {
-        const bus: u4 = 0;
+        var bus: u4 = 0;
         
         if (isCpu) {
             bus = self.cpu.buffer;
@@ -20,7 +20,7 @@ const Computer = struct {
         }
 
         self.cpu.buffer = bus;
-        for (self.roms) |rom| {
+        for (&self.roms) |*rom| {
             rom.buffer = bus;
         }
     }
@@ -30,7 +30,7 @@ const Computer = struct {
         self.cpu.tick();
         self.set_bus(true, 0);
         
-        for (self.roms) |rom| {
+        for (&self.roms) |*rom| {
             rom.tick();
         }
 

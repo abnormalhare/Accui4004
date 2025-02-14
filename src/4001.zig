@@ -2,7 +2,7 @@ const Clock = @import("clock.zig");
 
 pub const Intel4001 = struct {
     chip_num: u4,
-    rom: [0x100]u8,
+    rom: [0x200]u4,
     is_chip: bool,
 
     buffer: u4,
@@ -20,8 +20,8 @@ pub const Intel4001 = struct {
 
         if (Clock.p2) {
             switch (self.step) {
-                0 => self.address = @intCast((self.buffer >> 0) % 16),
-                1 => self.address = @intCast((self.buffer >> 4) % 16),
+                0 => self.address = @intCast(self.buffer),
+                1 => self.address = @as(u8, self.buffer) << 4,
                 2 => self.checkROM(self.buffer),
                 else => {}
             }
@@ -37,7 +37,7 @@ pub const Intel4001 = struct {
     }
 
     fn checkROM(self: *Intel4001, num: u4) void {
-        self.is_chip = !self.cm or (self.cm and self.chip_num == num);
+        self.is_chip = (self.cm == 0) or ((self.cm == 1) and self.chip_num == num);
     }
 
     fn getData(self: *Intel4001, offset: u8) void {

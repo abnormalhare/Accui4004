@@ -1,6 +1,6 @@
 const Clock = @import("clock.zig");
 
-const op_list = @import("opcodes").op_list;
+const op_list = @import("opcodes.zig").op_list;
 
 pub const Intel4004 = struct {
     buffer: u4,
@@ -18,7 +18,7 @@ pub const Intel4004 = struct {
     testP: bool,
 
     fn interpret(self: *Intel4004) void {
-        if (self.prev_instr) {
+        if (self.prev_instr != 0) {
             op_list[self.prev_instr](self);
         } else {
             op_list[self.instr](self);
