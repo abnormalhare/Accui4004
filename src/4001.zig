@@ -13,6 +13,7 @@ pub const Intel4001 = struct {
     address: u8,
     data: u4,
     step: u3,
+    instr: u2,
 
     pub fn tick(self: *Intel4001) void {
         if (!Clock.p1 and !Clock.p2) return;
@@ -22,13 +23,17 @@ pub const Intel4001 = struct {
                 0 => self.address = @intCast((self.buffer >> 0) % 16),
                 1 => self.address = @intCast((self.buffer >> 4) % 16),
                 2 => self.checkROM(self.buffer),
+                else => {}
             }
         } else if (Clock.p1) {
             switch (self.step) {
                 3 => self.getData(0),
                 4 => self.getData(1),
+                else => {}
             }
         }
+        
+        self.step += 1;
     }
 
     fn checkROM(self: *Intel4001, num: u4) void {
