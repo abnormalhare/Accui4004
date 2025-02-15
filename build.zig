@@ -29,6 +29,11 @@ pub fn build(b: *std.Build) void {
     // running `zig build`).
     b.installArtifact(lib);
 
+    const zeys = b.dependency("Zeys", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "EMU_Intel_4004",
         .root_source_file = b.path("src/main.zig"),
@@ -37,6 +42,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibC();
+    exe.root_module.addImport("zeys", zeys.module("zeys"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

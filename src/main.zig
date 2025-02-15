@@ -7,12 +7,12 @@ const Clock = @import("clock.zig");
 
 const Computer = struct {
     enable_state: u8,
-    cpu: Intel4001,
-    roms: [16]Intel4004,
+    cpu: Intel4004,
+    roms: [16]Intel4001,
 
     fn sync(self: *Computer, isCpu: bool, romNum: u4) void {
         var bus: u4 = 0;
-        const cmrom: bool = self.cpu.cm;
+        const cmrom: u1 = self.cpu.cm;
         
         if (isCpu) {
             bus = self.cpu.buffer;
@@ -45,6 +45,12 @@ pub fn main() !void {
     const comp = try alloc.create(Computer);
     
     Clock.currTime = std.time.nanoTimestamp();
+
+    var i = 0;
+    for (&comp.roms) |*rom| {
+        rom.chip_num = i;
+        i += 1;
+    }
 
     while (true) {
         comp.tick();

@@ -4,7 +4,7 @@ const op_list = @import("opcodes.zig").op_list;
 
 pub const Intel4004 = struct {
     buffer: u4,
-    accumulator: u4,
+    acc: u4,
     temp: u4,
     instr: u8,
     carry: bool,
@@ -16,6 +16,7 @@ pub const Intel4004 = struct {
 
     sync: u1,
     cm: u1,
+    cmram: u4,
     testP: bool,
     reset: bool,
 

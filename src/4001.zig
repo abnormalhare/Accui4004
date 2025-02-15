@@ -29,15 +29,11 @@ pub const Intel4001 = struct {
         } else if (Clock.p2) {
             switch (self.step) {
                 // A1
-                0 => self.address = @intCast(self.buffer),
+                0 => self.checkROM(self.buffer),
                 // A2
-                1 => self.address = @as(u8, self.buffer) << 4,
+                1 => self.address = @as(u8, self.buffer) << 0,
                 // A3
-                2 => self.checkROM(self.buffer),
-                // X2
-                6 => self.srcData(0),
-                // X3
-                7 => self.srcData(1),
+                2 => self.address = @as(u8, self.buffer) << 4,
                 else => {}
             }
         }
@@ -51,12 +47,6 @@ pub const Intel4001 = struct {
 
     fn getData(self: *Intel4001, offset: u8) void {
         if (!self.is_chip) return;
-
-        self.buffer = self.rom[self.address + offset];
-    }
-
-    fn srcData(self: *Intel4001, offset: u8) void {
-        if (!self.is_chip or self.cm == 0) return;
 
         self.buffer = self.rom[self.address + offset];
     }
