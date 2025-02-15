@@ -69,8 +69,10 @@ fn OP_FIM(self: *Intel4004, reg: u8) void {
 
 fn OP_SRC(self: *Intel4004, reg: u8) void {
     switch (self.step) {
-        5 => {}, // send SRC instruction?
-        6 => self.buffer = self.reg[reg + 0],
+        6 => {
+            self.cm = 1;
+            self.buffer = self.reg[reg + 0];
+        },
         7 => self.buffer = self.reg[reg + 1],
         else => {}
     }

@@ -10,8 +10,9 @@ const Computer = struct {
     cpu: Intel4001,
     roms: [16]Intel4004,
 
-    fn set_bus(self: *Computer, isCpu: bool, romNum: u4) void {
+    fn sync(self: *Computer, isCpu: bool, romNum: u4) void {
         var bus: u4 = 0;
+        const cmrom: bool = self.cpu.cm;
         
         if (isCpu) {
             bus = self.cpu.buffer;
@@ -22,13 +23,14 @@ const Computer = struct {
         self.cpu.buffer = bus;
         for (&self.roms) |*rom| {
             rom.buffer = bus;
+            rom.cm = cmrom;
         }
     }
 
     fn tick(self: *Computer) void {
         Clock.tick();
         self.cpu.tick();
-        self.set_bus(true, 0);
+        self.sync(true, 0);
         
         for (&self.roms) |*rom| {
             rom.tick();
@@ -47,11 +49,4 @@ pub fn main() !void {
     while (true) {
         comp.tick();
     }
-}
-
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
 }

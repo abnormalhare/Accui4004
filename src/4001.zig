@@ -18,17 +18,26 @@ pub const Intel4001 = struct {
     pub fn tick(self: *Intel4001) void {
         if (!Clock.p1 and !Clock.p2) return;
 
-        if (Clock.p2) {
+        if (Clock.p1) {
             switch (self.step) {
-                0 => self.address = @intCast(self.buffer),
-                1 => self.address = @as(u8, self.buffer) << 4,
-                2 => self.checkROM(self.buffer),
+                // M1
+                3 => self.getData(0),
+                // M2
+                4 => self.getData(1),
                 else => {}
             }
-        } else if (Clock.p1) {
+        } else if (Clock.p2) {
             switch (self.step) {
-                3 => self.getData(0),
-                4 => self.getData(1),
+                // A1
+                0 => self.address = @intCast(self.buffer),
+                // A2
+                1 => self.address = @as(u8, self.buffer) << 4,
+                // A3
+                2 => self.checkROM(self.buffer),
+                // X2
+                6 => self.srcData(0),
+                // X3
+                7 => self.srcData(1),
                 else => {}
             }
         }
@@ -42,6 +51,12 @@ pub const Intel4001 = struct {
 
     fn getData(self: *Intel4001, offset: u8) void {
         if (!self.is_chip) return;
+
+        self.buffer = self.rom[self.address + offset];
+    }
+
+    fn srcData(self: *Intel4001, offset: u8) void {
+        if (!self.is_chip or self.cm == 0) return;
 
         self.buffer = self.rom[self.address + offset];
     }

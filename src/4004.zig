@@ -15,7 +15,9 @@ pub const Intel4004 = struct {
     step: u3,
 
     sync: u1,
+    cm: u1,
     testP: bool,
+    reset: bool,
 
     fn interpret(self: *Intel4004) void {
         if (self.prev_instr != 0) {
@@ -30,16 +32,26 @@ pub const Intel4004 = struct {
 
         if (Clock.p1) {
             switch (self.step) {
+                // A1
                 0 => self.buffer  = @intCast((self.stack[0] >> 0) % 16),
+                // A2
                 1 => self.buffer += @intCast((self.stack[0] >> 4) % 16),
-                2 => self.buffer += @intCast((self.stack[0] >> 8) % 16),
-                // 3 and 4 are ROM enabled
+                // A3
+                2 => {
+                    self.buffer += @intCast((self.stack[0] >> 8) % 16);
+                    self.cm = 1;
+                },
+                // M1
+                3 => self.cm = 0,
+                // X1-3
                 5...7 => self.interpret(),
                 else => {}
             }
         } else if (Clock.p2) {
             switch (self.step) {
+                // M1
                 3 => self.instr = @as(u8, self.buffer) << 4,
+                // M2
                 4 => self.instr = @as(u8, self.buffer) << 0,
                 else => {}
             }
