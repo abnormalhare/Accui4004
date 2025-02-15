@@ -1,6 +1,7 @@
 const zeys = @import("zeys");
 
 const Intel4004 = @import("4004.zig").Intel4004;
+const TIMING = @import("enum.zig").TIMING;
 
 const opfunc = *const fn(self: *Intel4004) void;
 
@@ -18,7 +19,7 @@ fn OP_0x(self: *Intel4004) void {
 
 // JCN
 fn OP_1x(self: *Intel4004) void {
-    if (self.step != 5) return;
+    if (self.step != TIMING.X1) return;
     
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
@@ -56,7 +57,7 @@ fn OP_1x(self: *Intel4004) void {
 }
 
 fn OP_FIM(self: *Intel4004, reg: u8) void {
-    if (self.step != 5) return;
+    if (self.step != TIMING.X1) return;
     
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
@@ -89,12 +90,24 @@ fn OP_2x(self: *Intel4004) void {
     }
 }
 
+var nextIsData: bool = false;
 fn OP_FIN(self: *Intel4004, reg: u8) void {
-    _ = self; _ = reg;
+    if (self.step != TIMING.X1) return;
+    
+    if (self.prev_instr == 0) {
+        self.prev_instr = self.instr;
+
+        self.stack[0] = (self.stack[0] & 0xF00) + (self.reg[0] << 4) + (self.reg[1]);
+        return;
+    }
+
+    self.reg[reg + 0] = @intCast(self.instr >> 4);
+    self.reg[reg + 1] = @intCast(self.instr >> 0);
+    return;
 }
 
 fn OP_JIN(self: *Intel4004, reg: u8) void {
-    if (self.step != 5) return;
+    if (self.step != TIMING.X1) return;
 
     const pc: u12 = self.stack[0];
     self.stack[0] = (pc & 0xF00) + @as(u12, self.reg[reg] << 4) + @as(u12, self.reg[reg + 1]);
@@ -111,7 +124,7 @@ fn OP_3x(self: *Intel4004) void {
 
 // JUN
 fn OP_4x(self: *Intel4004) void {
-    if (self.step != 5) return;
+    if (self.step != TIMING.X1) return;
 
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
@@ -123,7 +136,7 @@ fn OP_4x(self: *Intel4004) void {
 
 // JMS
 fn OP_5x(self: *Intel4004) void {
-    if (self.step != 5) return;
+    if (self.step != TIMING.X1) return;
 
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
@@ -174,12 +187,12 @@ fn OP_Cx(self: *Intel4004) void {
     self.stack[1] = self.stack[2];
     self.stack[2] = self.stack[3];
 
-    self.acc = self.buffer;
+    self.acc = self.instr;
 }
 
 // LDM
 fn OP_Dx(self: *Intel4004) void {
-    self.acc = self.buffer;
+    self.acc = self.instr;
 }
 
 fn OP_Fx(self: *Intel4004) void {

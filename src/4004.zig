@@ -1,4 +1,5 @@
 const Clock = @import("clock.zig");
+const TIMING = @import("enum.zig").TIMING;
 
 const op_list = @import("opcodes.zig").op_list;
 
@@ -12,7 +13,7 @@ pub const Intel4004 = struct {
     reg: [16]u4,
 
     prev_instr: u8,
-    step: u3,
+    step: TIMING,
 
     sync: u1,
     cm: u1,
@@ -33,27 +34,24 @@ pub const Intel4004 = struct {
 
         if (Clock.p1) {
             switch (self.step) {
-                // A1
-                0 => self.buffer  = @intCast((self.stack[0] >> 0) % 16),
-                // A2
-                1 => self.buffer += @intCast((self.stack[0] >> 4) % 16),
-                // A3
-                2 => {
+                TIMING.A1 => self.buffer  = @intCast((self.stack[0] >> 0) % 16),
+                TIMING.A2 => self.buffer += @intCast((self.stack[0] >> 4) % 16),
+                TIMING.A3 => {
                     self.buffer += @intCast((self.stack[0] >> 8) % 16);
                     self.cm = 1;
                 },
-                // M1
-                3 => self.cm = 0,
-                // X1-3
-                5...7 => self.interpret(),
+                TIMING.M1 => self.cm = 0,
+                TIMING.X1...TIMING.X2 => self.interpret(),
+                TIMING.X3 => {
+                    self.interpret();
+                    self.pc += 1;
+                },
                 else => {}
             }
         } else if (Clock.p2) {
             switch (self.step) {
-                // M1
-                3 => self.instr = @as(u8, self.buffer) << 4,
-                // M2
-                4 => self.instr = @as(u8, self.buffer) << 0,
+                TIMING.M1 => self.instr = @as(u8, self.buffer) << 4,
+                TIMING.M2 => self.instr = @as(u8, self.buffer) << 0,
                 else => {}
             }
         }

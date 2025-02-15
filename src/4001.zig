@@ -1,4 +1,5 @@
 const Clock = @import("clock.zig");
+const TIMING = @import("enum.zig").TIMING;
 
 pub const Intel4001 = struct {
     chip_num: u4,
@@ -12,7 +13,7 @@ pub const Intel4001 = struct {
     cm: u1,
     address: u8,
     data: u4,
-    step: u3,
+    step: TIMING,
     instr: u2,
 
     pub fn tick(self: *Intel4001) void {
@@ -20,20 +21,15 @@ pub const Intel4001 = struct {
 
         if (Clock.p1) {
             switch (self.step) {
-                // M1
-                3 => self.getData(0),
-                // M2
-                4 => self.getData(1),
+                TIMING.M1 => self.getData(0),
+                TIMING.M2 => self.getData(1),
                 else => {}
             }
         } else if (Clock.p2) {
             switch (self.step) {
-                // A1
-                0 => self.checkROM(self.buffer),
-                // A2
-                1 => self.address = @as(u8, self.buffer) << 0,
-                // A3
-                2 => self.address = @as(u8, self.buffer) << 4,
+                TIMING.A1 => self.checkROM(self.buffer),
+                TIMING.A2 => self.address = @as(u8, self.buffer) << 0,
+                TIMING.A3 => self.address = @as(u8, self.buffer) << 4,
                 else => {}
             }
         }
