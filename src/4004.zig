@@ -1,6 +1,8 @@
+const alloc = @import("root.zig").alloc;
+
 const Clock = @import("clock.zig");
 const TIMING = @import("enum.zig").TIMING;
-
+const incStep = @import("enum.zig").incStep;
 const op_list = @import("opcodes.zig").op_list;
 
 pub const Intel4004 = struct {
@@ -21,6 +23,11 @@ pub const Intel4004 = struct {
     testP: bool,
     reset: bool,
 
+    pub fn init() !*Intel4004 {
+        const i: *Intel4004 = try alloc.create(Intel4004);
+        return i;
+    }
+
     fn interpret(self: *Intel4004) void {
         if (self.prev_instr != 0) {
             op_list[self.prev_instr](self);
@@ -32,6 +39,11 @@ pub const Intel4004 = struct {
     pub fn tick(self: *Intel4004) void {
         if (!Clock.p1 and !Clock.p2) return;
 
+        if (self.reset) {
+            self.zeroOut();
+            return;
+        }
+
         if (Clock.p1) {
             switch (self.step) {
                 TIMING.A1 => self.buffer  = @intCast((self.stack[0] >> 0) % 16),
@@ -41,10 +53,11 @@ pub const Intel4004 = struct {
                     self.cm = 1;
                 },
                 TIMING.M1 => self.cm = 0,
-                TIMING.X1...TIMING.X2 => self.interpret(),
+                TIMING.X1 => self.interpret(),
+                TIMING.X2 => self.interpret(),
                 TIMING.X3 => {
                     self.interpret();
-                    self.pc += 1;
+                    self.stack[0] += 1;
                 },
                 else => {}
             }
@@ -56,7 +69,27 @@ pub const Intel4004 = struct {
             }
         }
 
-        self.step += 1;
+        incStep(&self.step);
+    }
+
+    fn zeroOut(self: *Intel4004) void {
+        self.buffer = 0;
+        self.acc = 0;
+        self.temp = 0;
+        self.instr = 0;
+        self.carry = false;
+        for (&self.stack) |*s| {
+            s.* = 0;
+        }
+        for (&self.reg) |*r| {
+            r.* = 0;
+        }
+        self.prev_instr = 0;
+        self.step = TIMING.A1;
+        self.sync = 0;
+        self.cm = 0;
+        self.cmram = 0;
+        self.testP = false;
     }
 };
 

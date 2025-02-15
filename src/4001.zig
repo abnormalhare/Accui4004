@@ -1,5 +1,9 @@
+const std = @import("std");
+const alloc = @import("root.zig").alloc;
+
 const Clock = @import("clock.zig");
 const TIMING = @import("enum.zig").TIMING;
+const incStep = @import("enum.zig").incStep;
 
 pub const Intel4001 = struct {
     chip_num: u4,
@@ -15,6 +19,25 @@ pub const Intel4001 = struct {
     data: u4,
     step: TIMING,
     instr: u2,
+
+    pub fn init(chip_num: u4, rom: *const [0x200]u4) !*Intel4001 {
+        const i = try alloc.create(Intel4001);
+        
+        i.chip_num = chip_num;
+        i.rom = rom.*;
+        i.is_chip = false;
+        i.buffer = 0;
+        i.io = 0;
+        i.clear = false;
+        i.sync = 0;
+        i.cm = 0;
+        i.address = 0;
+        i.data = 0;
+        i.step = TIMING.A1;
+        i.instr = 0;
+
+        return i;
+    }
 
     pub fn tick(self: *Intel4001) void {
         if (!Clock.p1 and !Clock.p2) return;
@@ -33,8 +56,8 @@ pub const Intel4001 = struct {
                 else => {}
             }
         }
-        
-        self.step += 1;
+
+        incStep(&self.step);
     }
 
     fn checkROM(self: *Intel4001, num: u4) void {

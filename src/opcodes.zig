@@ -72,11 +72,11 @@ fn OP_FIM(self: *Intel4004, reg: u8) void {
 
 fn OP_SRC(self: *Intel4004, reg: u8) void {
     switch (self.step) {
-        6 => {
+        TIMING.X2 => {
             self.cm = 1;
             self.buffer = self.reg[reg + 0];
         },
-        7 => self.buffer = self.reg[reg + 1],
+        TIMING.X3 => self.buffer = self.reg[reg + 1],
         else => {}
     }
 }
@@ -97,20 +97,19 @@ fn OP_FIN(self: *Intel4004, reg: u8) void {
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
 
-        self.stack[0] = (self.stack[0] & 0xF00) + (self.reg[0] << 4) + (self.reg[1]);
+        self.stack[0] = (self.stack[0] & 0xF00) + (@as(u12, self.reg[0]) << 4) + @as(u12, self.reg[1]);
         return;
     }
 
     self.reg[reg + 0] = @intCast(self.instr >> 4);
     self.reg[reg + 1] = @intCast(self.instr >> 0);
-    return;
 }
 
 fn OP_JIN(self: *Intel4004, reg: u8) void {
     if (self.step != TIMING.X1) return;
 
     const pc: u12 = self.stack[0];
-    self.stack[0] = (pc & 0xF00) + @as(u12, self.reg[reg] << 4) + @as(u12, self.reg[reg + 1]);
+    self.stack[0] = (pc & 0xF00) + (@as(u12, self.reg[reg]) << 4) + @as(u12, self.reg[reg + 1]);
 }
 
 fn OP_3x(self: *Intel4004) void {
@@ -158,14 +157,14 @@ fn OP_6x(self: *Intel4004) void {
 // ADD
 fn OP_8x(self: *Intel4004) void {
     if (@as(u5, self.acc) + @as(u5, self.reg[self.instr & 0x0F]) > 0xF)
-        self.carry = 1;
+        self.carry = true;
     self.acc += self.reg[self.instr & 0x0F];
 }
 
 // SUB
 fn OP_9x(self: *Intel4004) void {
     if (@as(u5, self.acc) - @as(u5, self.reg[self.instr & 0x0F]) > 0xF)
-        self.carry = 0;
+        self.carry = false;
     self.acc -= self.reg[self.instr & 0x0F];
 }
 
@@ -187,50 +186,50 @@ fn OP_Cx(self: *Intel4004) void {
     self.stack[1] = self.stack[2];
     self.stack[2] = self.stack[3];
 
-    self.acc = self.instr;
+    self.acc = @intCast(self.instr);
 }
 
 // LDM
 fn OP_Dx(self: *Intel4004) void {
-    self.acc = self.instr;
+    self.acc = @intCast(self.instr);
 }
 
 fn OP_Fx(self: *Intel4004) void {
     switch (self.instr & 0x0F) {
         0 => {
-            self.carry = 0;
+            self.carry = false;
             self.acc = 0;
         },
-        1 => self.carry = 0,
+        1 => self.carry = false,
         2 => self.acc += 1,
         3 => self.carry = !self.carry,
         4 => self.acc = ~self.acc,
         5 => {
-            const c = self.carry;
-            self.carry = (self.acc >> 7) & 2;
+            const c: u4 = @intFromBool(self.carry);
+            self.carry = ((self.acc >> 3) & 2) == 1;
             self.acc <<= 1;
-            self.acc += @intFromBool(c);
+            self.acc += c;
         },
         6 => {
-            const c = self.carry;
-            self.carry = self.acc & 2;
+            const c: u4 = @intFromBool(self.carry);
+            self.carry = (self.acc & 2) == 1;
             self.acc >>= 1;
-            self.acc += @intFromBool(c) << 3;
+            self.acc += c << 3;
         },
         7 => {
             self.acc = @intFromBool(self.carry);
-            self.carry = 0;
+            self.carry = false;
         },
         8 => self.acc -= 1,
         9 => {
-            self.acc = 9 + @intFromBool(self.carry);
-            self.carry = 0;
+            self.acc = 9 + @as(u4, @intFromBool(self.carry));
+            self.carry = false;
         },
-        10 => self.carry = 1,
+        10 => self.carry = true,
         11 => {
             if (self.carry or self.acc > 9) {
                 if (@as(u5, self.acc) + 6 >= 16) {
-                    self.carry = 1;
+                    self.carry = true;
                 }
                 self.acc += 6;
             }
@@ -243,7 +242,8 @@ fn OP_Fx(self: *Intel4004) void {
         },
         13 => {
             self.cmram = self.acc;
-        }
+        },
+        else => {}
     }
 }
 
