@@ -30,12 +30,20 @@ pub const Intel4004 = struct {
     }
 
     fn interpret(self: *Intel4004) void {
-        std.debug.print("INSTRUCTION: 0x{X}\n", .{self.instr});
+        // std.debug.print("INSTRUCTION: 0x{X}\n", .{self.instr});
         if (self.prev_instr != 0) {
             op_list[@divFloor(self.prev_instr, 0x10)](self);
         } else {
             op_list[@divFloor(self.instr, 0x10)](self);
         }
+    }
+
+    fn print_state(self: *Intel4004) void {
+        std.debug.print("|| INSTR: 0x{X:0>2} ||\nACC: 0x{X:0>1}  C: {}\nREGS:\n{X:0>1} {X:0>1}\n\n", .{
+            self.instr,
+            self.acc, @intFromBool(self.carry),
+            self.reg[0], self.reg[1]
+        });
     }
 
     pub fn tick(self: *Intel4004) void {
@@ -56,12 +64,13 @@ pub const Intel4004 = struct {
                 TIMING.A3 => {
                     self.buffer += @intCast((self.stack[0] >> 0) % 16);
                     self.cm = 0;
+                    self.stack[0] += 1;
                 },
                 TIMING.X1 => self.interpret(),
                 TIMING.X2 => self.interpret(),
                 TIMING.X3 => {
                     self.interpret();
-                    self.stack[0] += 1;
+                    self.print_state();
                 },
                 else => {}
             }
@@ -71,7 +80,7 @@ pub const Intel4004 = struct {
                 TIMING.M2 => self.instr += @as(u8, self.buffer) << 0,
                 else => {}
             }
-            std.debug.print("CPU step: {any}\n", .{self.step});
+            // std.debug.print("CPU step: {any}\n", .{self.step});
             incStep(&self.step);
         }
 

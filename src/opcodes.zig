@@ -1,3 +1,4 @@
+const std = @import("std");
 const zeys = @import("zeys");
 
 const Intel4004 = @import("4004.zig").Intel4004;
@@ -56,7 +57,7 @@ fn OP_1x(self: *Intel4004) void {
     self.prev_instr = 0;
 }
 
-fn OP_FIM(self: *Intel4004, reg: u8) void {
+fn OP_FIM(self: *Intel4004, reg: u4) void {
     if (self.step != TIMING.X1) return;
     
     if (self.prev_instr == 0) {
@@ -64,13 +65,14 @@ fn OP_FIM(self: *Intel4004, reg: u8) void {
         return;
     }
 
-    self.reg[reg + 0] = @intCast((self.instr & 0xF0) >> 4);
-    self.reg[reg + 1] = @intCast((self.instr & 0x0F) >> 0);
+    self.reg[reg + 0] = @truncate(self.instr >> 4);
+    self.reg[reg + 1] = @truncate(self.instr);
 
     self.prev_instr = 0;
 }
 
-fn OP_SRC(self: *Intel4004, reg: u8) void {
+// unimplemented I/O functionality
+fn OP_SRC(self: *Intel4004, reg: u4) void {
     switch (self.step) {
         TIMING.X2 => {
             self.cm = 1;
@@ -82,8 +84,8 @@ fn OP_SRC(self: *Intel4004, reg: u8) void {
 }
 
 fn OP_2x(self: *Intel4004) void {
-    const amnt: u8 = (self.instr >> 1) << 1;
-    if (self.instr % 2 == 0) {
+    const amnt: u4 = if (self.prev_instr != 0) @truncate((self.prev_instr >> 1) << 1) else @truncate((self.instr >> 1) << 1);
+    if ((self.prev_instr != 0 and self.prev_instr % 2 == 0) or self.instr % 2 == 0) {
         OP_FIM(self, amnt);
     } else {
         OP_SRC(self, amnt);
@@ -91,7 +93,7 @@ fn OP_2x(self: *Intel4004) void {
 }
 
 var nextIsData: bool = false;
-fn OP_FIN(self: *Intel4004, reg: u8) void {
+fn OP_FIN(self: *Intel4004, reg: u4) void {
     if (self.step != TIMING.X1) return;
     
     if (self.prev_instr == 0) {
@@ -105,7 +107,7 @@ fn OP_FIN(self: *Intel4004, reg: u8) void {
     self.reg[reg + 1] = @intCast(self.instr >> 0);
 }
 
-fn OP_JIN(self: *Intel4004, reg: u8) void {
+fn OP_JIN(self: *Intel4004, reg: u4) void {
     if (self.step != TIMING.X1) return;
 
     const pc: u12 = self.stack[0];
@@ -113,8 +115,8 @@ fn OP_JIN(self: *Intel4004, reg: u8) void {
 }
 
 fn OP_3x(self: *Intel4004) void {
-    const amnt: u8 = (self.instr >> 1) << 1;
-    if (self.instr % 2 == 0) {
+    const amnt: u4 = if (self.prev_instr != 0) @truncate((self.prev_instr >> 1) << 1) else @truncate((self.instr >> 1) << 1);
+    if ((self.prev_instr != 0 and self.prev_instr % 2 == 0) or self.instr % 2 == 0) {
         OP_FIN(self, amnt);
     } else {
         OP_JIN(self, amnt);
@@ -131,6 +133,8 @@ fn OP_4x(self: *Intel4004) void {
     }
 
     self.stack[0] = (@as(u12, self.prev_instr & 0x0F) << 8) + @as(u12, self.instr);
+
+    self.prev_instr = 0;
 }
 
 // JMS
@@ -147,6 +151,8 @@ fn OP_5x(self: *Intel4004) void {
     self.stack[1] = self.stack[0];
 
     self.stack[0] = (@as(u12, self.prev_instr & 0x0F) << 8) + @as(u12, self.instr);
+
+    self.prev_instr = 0;
 }
 
 // INC
@@ -154,6 +160,24 @@ fn OP_6x(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
     self.reg[self.instr & 0x0F] += 1;
+}
+
+// ISZ
+fn OP_7x(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
+    if (self.prev_instr == 0) {
+        self.prev_instr = self.instr;
+        return;
+    }
+
+    self.reg[self.prev_instr & 0xF] += 1;
+
+    if (self.reg[self.prev_instr & 0xF] != 0) {
+        self.stack[0] = (self.stack[0] & 0xF00) + @as(u12, self.instr);
+    }
+
+    self.prev_instr = 0;
 }
 
 // ADD
@@ -247,7 +271,7 @@ fn OP_Fx(self: *Intel4004) void {
                 if (@as(u5, self.acc) + 6 >= 16) {
                     self.carry = true;
                 }
-                self.acc += 6;
+                self.acc, _ = @addWithOverflow(self.acc, 6);
             }
         },
         12 => {

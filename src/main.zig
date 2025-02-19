@@ -126,8 +126,8 @@ pub fn main() !void {
                 rom.*.reset = false;
             }
         }
-        if (count == 64 + (4 * 8)) {
-            break;
-        }
+        // if (count == 64 + (4 * 8)) {
+        //     break;
+        // }
     }
 }
