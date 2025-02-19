@@ -22,29 +22,30 @@ const Computer = struct {
 
         self.cpu.buffer = bus;
         for (&self.roms) |*rom| {
-            rom.buffer = bus;
-            rom.cm = cmrom;
+            rom.*.buffer = bus;
+            rom.*.cm = cmrom;
         }
     }
 
     fn tick(self: *Computer) void {
-        Clock.tick();
         self.cpu.tick();
         self.sync(true, 0);
         
         for (&self.roms) |*rom| {
-            rom.tick();
+            rom.*.tick();
+            self.sync(false, rom.*.chip_num);
         }
 
         Clock.p1 = false;
         Clock.p2 = false;
     }
 
-    fn splitCopyROM(dest: [0x200 * 0x10]u4, source: [0x100 * 0x10]u8) void {
-        var i: u8 = 0;
-        while (i < 0x200) : (i += 1) {
-            dest[i * 2 + 0] = @intCast(source[i]);
-            dest[i * 2 + 1] = @intCast(source[i] >> 4);
+    fn splitCopyROM(dest: *[0x200 * 0x10]u4, source: [0x100 * 0x10]u8) void {
+        var i: u32 = 0;
+        while (i < 0x200) {
+            dest[i * 2 + 0] = @intCast(source[i] >> 4);
+            dest[i * 2 + 1] = @truncate(source[i]);
+            i += 1;
         }
     }
 
@@ -53,7 +54,6 @@ const Computer = struct {
         defer file.close();
 
         var str: [0x100 * 0x10]u8 = [_]u8{0} ** (0x100 * 0x10);
-        const rom: [0x200 * 0x10]u4 = [_]u4{0} ** (0x200 * 0x10);
         var checkStr: [3]u8 = .{0, 0, 0};
         _ = try file.read(&checkStr);
         if (!std.mem.eql(u8, &checkStr, "i44")) { return error.NotI4004File; }
@@ -61,17 +61,21 @@ const Computer = struct {
         try file.seekTo(0x10);
         _ = try file.read(&str);
 
-        splitCopyROM(rom, str);
+        var rom: [0x200 * 0x10]u4 = [_]u4{0} ** (0x200 * 0x10);
+
+        splitCopyROM(&rom, str);
 
         _ = self;
-        return rom;
+        return &rom[0];
     }
 
-    fn copyROM(dest: [0x200]u4, source: *u4) void {
-        var i: u8 = 0;
-        while (i < 0x200) : (i += 1) {
-            dest[i] = source.*;
-            source += 1;
+    fn copyROM(dest: *[0x200]u4, source: *u4) void {
+        var s: *u4 = source;
+        var i: u16 = 0;
+        while (i < 0x200) {
+            dest[i] = s.*;
+            s = @ptrFromInt(@intFromPtr(s) + 1);
+            i += 1;
         }
     }
 
@@ -82,13 +86,13 @@ const Computer = struct {
 
         var fileROM: *u4 = try self.getROM("input.i44");
 
-        var i: u4 = 0;
-        while (i < 16) : (i += 1) {
-            const rom: [0x200]u4 = undefined;
-            copyROM(rom, fileROM);
-            self.roms[i] = try Intel4001.init(i, &rom);
+        var i: u8 = 0;
+        while (i < 16) {
+            var rom: [0x200]u4 = undefined;
+            copyROM(&rom, fileROM);
+            self.roms[i] = try Intel4001.init(@intCast(i), &rom);
 
-            i += 1;
+            i, _ = @addWithOverflow(i, 1);
             fileROM = @ptrFromInt(@intFromPtr(fileROM) + 200);
         }
 
@@ -98,18 +102,32 @@ const Computer = struct {
 
 pub fn main() !void {
     // startup
+    std.debug.print("STARTING COMPUTER\n=================\n", .{});
     var comp: *Computer = try Computer.init();
-    
-    Clock.currTime = std.time.nanoTimestamp();
+    std.debug.print("=================\nENDED COMPUTER START\n\n", .{});
+
+    Clock.setTime = std.time.nanoTimestamp();
 
     // emulate
-    var count: u8 = 0;
+    var count: u32 = 0;
     comp.cpu.reset = true;
+    for (&comp.roms) |*rom| {
+        rom.*.reset = true;
+    }
     while (true) {
-        if (count >= 64) {
-            comp.cpu.reset = false;
+        Clock.tick();
+        if (Clock.p2) {
+            count += 1;
         }
         comp.tick();
-        if (Clock.p2) count += 1;
+        if (count == 64) {
+            comp.cpu.reset = false;
+            for (&comp.roms) |*rom| {
+                rom.*.reset = false;
+            }
+        }
+        if (count == 64 + (2 * 8)) {
+            break;
+        }
     }
 }

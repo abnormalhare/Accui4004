@@ -1,3 +1,4 @@
+const std = @import("std");
 const alloc = @import("root.zig").alloc;
 
 const Clock = @import("clock.zig");
@@ -29,10 +30,11 @@ pub const Intel4004 = struct {
     }
 
     fn interpret(self: *Intel4004) void {
+        std.debug.print("INSTRUCTION: {x}\n", .{self.instr});
         if (self.prev_instr != 0) {
-            op_list[self.prev_instr](self);
+            op_list[@divFloor(self.prev_instr, 0x10)](self);
         } else {
-            op_list[self.instr](self);
+            op_list[@divFloor(self.instr, 0x10)](self);
         }
     }
 
@@ -46,13 +48,15 @@ pub const Intel4004 = struct {
 
         if (Clock.p1) {
             switch (self.step) {
-                TIMING.A1 => self.buffer  = @intCast((self.stack[0] >> 0) % 16),
+                TIMING.A1 => {
+                    self.cm = 1;
+                    self.buffer  = @intCast((self.stack[0] >> 8) % 16);
+                },
                 TIMING.A2 => self.buffer += @intCast((self.stack[0] >> 4) % 16),
                 TIMING.A3 => {
-                    self.buffer += @intCast((self.stack[0] >> 8) % 16);
-                    self.cm = 1;
+                    self.buffer += @intCast((self.stack[0] >> 0) % 16);
+                    self.cm = 0;
                 },
-                TIMING.M1 => self.cm = 0,
                 TIMING.X1 => self.interpret(),
                 TIMING.X2 => self.interpret(),
                 TIMING.X3 => {
@@ -64,12 +68,13 @@ pub const Intel4004 = struct {
         } else if (Clock.p2) {
             switch (self.step) {
                 TIMING.M1 => self.instr = @as(u8, self.buffer) << 4,
-                TIMING.M2 => self.instr = @as(u8, self.buffer) << 0,
+                TIMING.M2 => self.instr += @as(u8, self.buffer) << 0,
                 else => {}
             }
+            std.debug.print("CPU step: {any}\n", .{self.step});
+            incStep(&self.step);
         }
 
-        incStep(&self.step);
     }
 
     fn zeroOut(self: *Intel4004) void {

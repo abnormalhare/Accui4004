@@ -15,6 +15,7 @@ pub const Intel4001 = struct {
     clear: bool,
     sync: u1,
     cm: u1,
+    reset: bool,
     address: u8,
     data: u4,
     step: TIMING,
@@ -26,21 +27,17 @@ pub const Intel4001 = struct {
         i.chip_num = chip_num;
         i.rom = rom.*;
         i.is_chip = false;
-        i.buffer = 0;
-        i.io = 0;
-        i.clear = false;
-        i.sync = 0;
-        i.cm = 0;
-        i.address = 0;
-        i.data = 0;
-        i.step = TIMING.A1;
-        i.instr = 0;
 
         return i;
     }
 
     pub fn tick(self: *Intel4001) void {
         if (!Clock.p1 and !Clock.p2) return;
+
+        if (self.reset) {
+            self.zeroOut();
+            return;
+        }
 
         if (Clock.p1) {
             switch (self.step) {
@@ -51,13 +48,13 @@ pub const Intel4001 = struct {
         } else if (Clock.p2) {
             switch (self.step) {
                 TIMING.A1 => self.checkROM(self.buffer),
-                TIMING.A2 => self.address = @as(u8, self.buffer) << 0,
-                TIMING.A3 => self.address = @as(u8, self.buffer) << 4,
+                TIMING.A2 => self.address = @as(u8, self.buffer) << 4,
+                TIMING.A3 => self.address = @as(u8, self.buffer) << 0,
                 else => {}
             }
+            incStep(&self.step);
         }
 
-        incStep(&self.step);
     }
 
     fn checkROM(self: *Intel4001, num: u4) void {
@@ -67,6 +64,20 @@ pub const Intel4001 = struct {
     fn getData(self: *Intel4001, offset: u8) void {
         if (!self.is_chip) return;
 
+        std.debug.print("ADDRESS: 0x{X:0>3}\n", .{(@as(u12, self.chip_num) << 8) + @as(u12, self.address)});
+
         self.buffer = self.rom[self.address + offset];
+    }
+
+    fn zeroOut(self: *Intel4001) void {
+        self.buffer = 0;
+        self.io = 0;
+        self.clear = false;
+        self.sync = 0;
+        self.cm = 0;
+        self.address = 0;
+        self.data = 0;
+        self.step = TIMING.A1;
+        self.instr = 0;
     }
 };

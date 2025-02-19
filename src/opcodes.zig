@@ -151,11 +151,15 @@ fn OP_5x(self: *Intel4004) void {
 
 // INC
 fn OP_6x(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
     self.reg[self.instr & 0x0F] += 1;
 }
 
 // ADD
 fn OP_8x(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+    
     if (@as(u5, self.acc) + @as(u5, self.reg[self.instr & 0x0F]) > 0xF)
         self.carry = true;
     self.acc += self.reg[self.instr & 0x0F];
@@ -163,6 +167,8 @@ fn OP_8x(self: *Intel4004) void {
 
 // SUB
 fn OP_9x(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
     if (@as(u5, self.acc) - @as(u5, self.reg[self.instr & 0x0F]) > 0xF)
         self.carry = false;
     self.acc -= self.reg[self.instr & 0x0F];
@@ -170,11 +176,15 @@ fn OP_9x(self: *Intel4004) void {
 
 // LD
 fn OP_Ax(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
     self.acc = self.reg[self.instr & 0x0F];
 }
 
 // XCH
 fn OP_Bx(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
     const temp = self.acc;
     self.acc = self.reg[self.instr & 0x0F];
     self.reg[self.instr & 0x0F] = temp;
@@ -182,6 +192,8 @@ fn OP_Bx(self: *Intel4004) void {
 
 // BBL
 fn OP_Cx(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
     self.stack[0] = self.stack[1];
     self.stack[1] = self.stack[2];
     self.stack[2] = self.stack[3];
@@ -191,10 +203,14 @@ fn OP_Cx(self: *Intel4004) void {
 
 // LDM
 fn OP_Dx(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+
     self.acc = @intCast(self.instr);
 }
 
 fn OP_Fx(self: *Intel4004) void {
+    if (self.step != TIMING.X1) return;
+    
     switch (self.instr & 0x0F) {
         0 => {
             self.carry = false;

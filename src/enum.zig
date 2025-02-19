@@ -5,6 +5,6 @@ pub const TIMING = enum(u3) {
 };
 
 pub fn incStep(step: *TIMING) void {
-    const val: u3 = @intFromEnum(step.*) + 1;
+    const val: u3, _ = @addWithOverflow(@intFromEnum(step.*), 1);
     step.* = @enumFromInt(val);
 }
