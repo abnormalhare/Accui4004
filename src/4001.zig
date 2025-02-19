@@ -66,7 +66,7 @@ pub const Intel4001 = struct {
 
         std.debug.print("ADDRESS: 0x{X:0>3}\n", .{(@as(u12, self.chip_num) << 8) + @as(u12, self.address)});
 
-        self.buffer = self.rom[self.address + offset];
+        self.buffer = self.rom[@as(u32, self.address) * 2 + offset];
     }
 
     fn zeroOut(self: *Intel4001) void {

@@ -30,7 +30,7 @@ pub const Intel4004 = struct {
     }
 
     fn interpret(self: *Intel4004) void {
-        std.debug.print("INSTRUCTION: {x}\n", .{self.instr});
+        std.debug.print("INSTRUCTION: 0x{X}\n", .{self.instr});
         if (self.prev_instr != 0) {
             op_list[@divFloor(self.prev_instr, 0x10)](self);
         } else {
