@@ -58,7 +58,7 @@ pub const Intel4001 = struct {
     }
 
     fn checkROM(self: *Intel4001, num: u4) void {
-        self.is_chip = (self.cm == 0) or ((self.cm == 1) and self.chip_num == num);
+        self.is_chip = self.chip_num == num;
     }
 
     fn getData(self: *Intel4001, offset: u8) void {
