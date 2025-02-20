@@ -232,6 +232,17 @@ fn OP_Dx(self: *Intel4004) void {
     self.acc = @intCast(self.instr);
 }
 
+fn OP_Ex(self: *Intel4004) void {
+    if (self.step != TIMING.X2) return;
+    
+    switch (self.instr & 0x0F) {
+        2 => {
+            self.buffer = self.acc;
+        },
+        else => {}
+    }
+}
+
 fn OP_Fx(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
     
@@ -287,11 +298,9 @@ fn OP_Fx(self: *Intel4004) void {
     }
 }
 
-fn TEMP(self: *Intel4004) void { _ = self; }
-
 pub const op_list: [16]opfunc = [_]opfunc{
     OP_0x, OP_1x, OP_2x, OP_3x,
-    OP_4x, OP_5x, OP_6x, TEMP,
+    OP_4x, OP_5x, OP_6x, OP_7x,
     OP_8x, OP_9x, OP_Ax, OP_Bx,
-    OP_Cx, OP_Dx, TEMP , OP_Fx
+    OP_Cx, OP_Dx, OP_Ex, OP_Fx
 };

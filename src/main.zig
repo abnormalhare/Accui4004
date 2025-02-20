@@ -3,27 +3,35 @@ const alloc = @import("root.zig").alloc;
 
 const Intel4001 = @import("4001.zig").Intel4001;
 const Intel4004 = @import("4004.zig").Intel4004;
+const Intel4002 = @import("4002.zig").Intel4002;
 const Clock = @import("clock.zig");
 
 const Computer = struct {
     enable_state: u8,
     cpu: *Intel4004,
     roms: [16]*Intel4001,
+    rams: [4]*Intel4004,
 
-    fn sync(self: *Computer, isCpu: bool, romNum: u4) void {
+    fn sync(self: *Computer, t: u2, num: u4) void {
         var bus: u4 = 0;
         const cmrom: u1 = self.cpu.cm;
         
-        if (isCpu) {
+        if (t == 0) { // cpu
             bus = self.cpu.buffer;
-        } else {
-            bus = self.roms[romNum].buffer;
+        } else if (t == 1) { // roms
+            bus = self.roms[num].buffer;
+        } else { // rams
+            bus = self.rams[num].buffer;
         }
 
         self.cpu.buffer = bus;
         for (&self.roms) |*rom| {
             rom.*.buffer = bus;
             rom.*.cm = cmrom;
+        }
+        for (&self.rams) |*ram| {
+            ram.*.buffer = bus;
+            ram.*.cm = cmrom;
         }
     }
 
@@ -34,6 +42,9 @@ const Computer = struct {
         for (&self.roms) |*rom| {
             rom.*.tick();
             self.sync(false, rom.*.chip_num);
+        }
+        for (&self.rams) |*ram| {
+            ram.*.tick();
         }
 
         Clock.p1 = false;
@@ -94,6 +105,12 @@ const Computer = struct {
 
             i, _ = @addWithOverflow(i, 1);
             fileROM = @ptrFromInt(@intFromPtr(fileROM) + 200);
+        }
+
+        i = 0;
+        while (i < 4) {
+            self.rams[i] = try Intel4002.init(@intCast(i));
+            i += 1;
         }
 
         return self;

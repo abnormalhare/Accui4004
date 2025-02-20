@@ -39,7 +39,7 @@ pub const Intel4004 = struct {
     }
 
     fn print_state(self: *Intel4004) void {
-        std.debug.print("|| INSTR: 0x{X:0>2} ||\nACC: 0x{X:0>1}  C: {}\nREGS:\n{X:0>1} {X:0>1}\n\n", .{
+        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1}\n\n", .{
             self.instr,
             self.acc, @intFromBool(self.carry),
             self.reg[0], self.reg[1]
