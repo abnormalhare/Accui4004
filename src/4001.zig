@@ -18,7 +18,7 @@ pub const Intel4001 = struct {
     cm: u1,
     reset: bool,
     
-    char: u2,
+    address: u8,
     
     step: TIMING,
 
@@ -35,7 +35,6 @@ pub const Intel4001 = struct {
     fn interpret(self: *Intel4001) void {
         if (!self.is_io_chip) {
             self.is_io_chip = self.chip_num == self.buffer;
-            if (self.is_io_chip)
             return;
         }
         

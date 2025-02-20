@@ -39,10 +39,14 @@ pub const Intel4004 = struct {
     }
 
     fn print_state(self: *Intel4004) void {
-        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1}\n\n", .{
+        // std.debug.print("\x1B[H", .{});
+        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n\n", .{
             self.instr,
             self.acc, @intFromBool(self.carry),
-            self.reg[0], self.reg[1]
+            self.reg[0], self.reg[1], self.reg[2], self.reg[3],
+            self.reg[4], self.reg[5], self.reg[6], self.reg[7],
+            self.reg[8], self.reg[9], self.reg[10], self.reg[11],
+            self.reg[12], self.reg[13], self.reg[14], self.reg[15],
         });
     }
 
@@ -66,9 +70,18 @@ pub const Intel4004 = struct {
                     self.cm = 0;
                     self.stack[0] += 1;
                 },
-                TIMING.X1 => self.interpret(),
-                TIMING.X2 => self.interpret(),
+                TIMING.M2 => {
+                    if ((self.instr >> 4) == 0xE) self.cmram = 1;
+                },
+                TIMING.X1 => {
+                    self.cmram = 0;
+                    self.interpret();
+                },
+                TIMING.X2 => {
+                    self.interpret();
+                },
                 TIMING.X3 => {
+                    self.sync = 1;
                     self.interpret();
                     self.print_state();
                 },
@@ -76,7 +89,7 @@ pub const Intel4004 = struct {
             }
         } else if (Clock.p2) {
             switch (self.step) {
-                TIMING.M1 => self.instr = @as(u8, self.buffer) << 4,
+                TIMING.M1 => self.instr  = @as(u8, self.buffer) << 4,
                 TIMING.M2 => self.instr += @as(u8, self.buffer) << 0,
                 else => {}
             }

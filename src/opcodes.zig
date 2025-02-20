@@ -1,5 +1,4 @@
 const std = @import("std");
-const zeys = @import("zeys");
 
 const Intel4004 = @import("4004.zig").Intel4004;
 const TIMING = @import("enum.zig").TIMING;
@@ -71,11 +70,11 @@ fn OP_FIM(self: *Intel4004, reg: u4) void {
     self.prev_instr = 0;
 }
 
-// unimplemented I/O functionality
 fn OP_SRC(self: *Intel4004, reg: u4) void {
     switch (self.step) {
         TIMING.X2 => {
             self.cm = 1;
+            self.cmram = 1;
             self.buffer = self.reg[reg + 0];
         },
         TIMING.X3 => self.buffer = self.reg[reg + 1],
@@ -236,7 +235,7 @@ fn OP_Ex(self: *Intel4004) void {
     if (self.step != TIMING.X2) return;
     
     switch (self.instr & 0x0F) {
-        2 => {
+        0...7 => {
             self.buffer = self.acc;
         },
         else => {}

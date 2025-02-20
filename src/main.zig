@@ -1,20 +1,23 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
+const zeys = @import("zeys");
 
 const Intel4001 = @import("4001.zig").Intel4001;
 const Intel4004 = @import("4004.zig").Intel4004;
 const Intel4002 = @import("4002.zig").Intel4002;
+const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("clock.zig");
 
 const Computer = struct {
     enable_state: u8,
     cpu: *Intel4004,
     roms: [16]*Intel4001,
-    rams: [4]*Intel4004,
+    rams: [4]*Intel4002,
 
     fn sync(self: *Computer, t: u2, num: u4) void {
         var bus: u4 = 0;
         const cmrom: u1 = self.cpu.cm;
+        const cmram: u1 = @truncate(self.cpu.cmram & 1);
         
         if (t == 0) { // cpu
             bus = self.cpu.buffer;
@@ -31,20 +34,31 @@ const Computer = struct {
         }
         for (&self.rams) |*ram| {
             ram.*.buffer = bus;
-            ram.*.cm = cmrom;
+            ram.*.cm = cmram;
+        }
+
+        if (self.cpu.sync == 1 and self.cpu.step == TIMING.A1) {
+            for (&self.roms) |*rom| {
+                rom.*.step = TIMING.X3;
+            }
+            for (&self.rams) |*ram| {
+                ram.*.step = TIMING.X3;
+            }
+            self.cpu.sync = 0;
         }
     }
 
     fn tick(self: *Computer) void {
         self.cpu.tick();
-        self.sync(true, 0);
+        self.sync(0, 0);
         
         for (&self.roms) |*rom| {
             rom.*.tick();
-            self.sync(false, rom.*.chip_num);
+            self.sync(1, rom.*.chip_num);
         }
         for (&self.rams) |*ram| {
             ram.*.tick();
+            self.sync(2, ram.*.chip_num);
         }
 
         Clock.p1 = false;
@@ -94,7 +108,6 @@ const Computer = struct {
         const self: *Computer = try alloc.create(Computer);
 
         self.cpu = try Intel4004.init();
-
         var fileROM: *u4 = try self.getROM("input.i44");
 
         var i: u8 = 0;
@@ -119,11 +132,10 @@ const Computer = struct {
 
 pub fn main() !void {
     // startup
-    std.debug.print("STARTING COMPUTER\n=================\n", .{});
     var comp: *Computer = try Computer.init();
-    std.debug.print("=================\nENDED COMPUTER START\n\n", .{});
-
     Clock.setTime = std.time.nanoTimestamp();
+
+    std.debug.print("\x1B[H\x1B[2J", .{});
 
     // emulate
     var count: u32 = 0;
