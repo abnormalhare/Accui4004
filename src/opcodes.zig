@@ -266,7 +266,11 @@ fn OP_Fx(self: *Intel4004) void {
             self.acc = 0;
         },
         1 => self.carry = false,
-        2 => self.acc += 1,
+        2 => {
+            var c: u1 = 0;
+            self.acc, c = @addWithOverflow(self.acc, 1);
+            self.carry = c == 1;
+        },
         3 => self.carry = !self.carry,
         4 => self.acc = ~self.acc,
         5 => {
@@ -285,7 +289,11 @@ fn OP_Fx(self: *Intel4004) void {
             self.acc = @intFromBool(self.carry);
             self.carry = false;
         },
-        8 => self.acc -= 1,
+        8 => {
+            var c: u1 = 0;
+            self.acc, c = @subWithOverflow(self.acc, 1);
+            self.carry = c == 1;
+        },
         9 => {
             self.acc = 9 + @as(u4, @intFromBool(self.carry));
             self.carry = false;

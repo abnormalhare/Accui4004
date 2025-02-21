@@ -238,7 +238,7 @@ const Computer = struct {
             self.roms[i] = try Intel4001.init(@intCast(i), &rom);
 
             i, _ = @addWithOverflow(i, 1);
-            fileROM = @ptrFromInt(@intFromPtr(fileROM) + 200);
+            fileROM = @ptrFromInt(@intFromPtr(fileROM) + 0x200);
         }
 
         i = 0;
@@ -268,6 +268,9 @@ pub fn main() !void {
 
     var comp: *Computer = try Computer.init(filename);
     Clock.setTime = std.time.nanoTimestamp();
+
+    // comp = undefined;
+    // return;
 
     std.debug.print("\x1B[H\x1B[2J", .{});
 
