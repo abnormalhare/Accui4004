@@ -224,11 +224,11 @@ const Computer = struct {
         }
     }
 
-    pub fn init() !*Computer {
+    pub fn init(filename: []u8) !*Computer {
         const self: *Computer = try alloc.create(Computer);
 
         self.cpu = try Intel4004.init();
-        var fileROM: *u4 = try self.getROM("input.i44");
+        var fileROM: *u4 = try self.getROM(filename);
 
         var i: u8 = 0;
         while (i < 16) {
@@ -251,8 +251,21 @@ const Computer = struct {
 };
 
 pub fn main() !void {
+    var filename: []u8 = undefined;
     // startup
-    var comp: *Computer = try Computer.init();
+    var argsIterator = try std.process.ArgIterator.initWithAllocator(alloc);
+    defer argsIterator.deinit();
+
+    _ = argsIterator.next();
+    if (argsIterator.next()) |path| {
+        filename = try alloc.alloc(u8, path.len);
+        @memcpy(filename, path);
+    } else {
+        std.debug.print("Command Usage: [emu].exe [filename].i44", .{});
+        return;
+    }
+
+    var comp: *Computer = try Computer.init(filename);
     Clock.setTime = std.time.nanoTimestamp();
 
     std.debug.print("\x1B[H\x1B[2J", .{});
