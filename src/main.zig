@@ -15,7 +15,7 @@ const Computer = struct {
     rams: [4]*Intel4002,
 
     fn print_state(self: *Computer) !void {
-        // while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+        while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
 
         std.debug.print("\x1B[H", .{});
         std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
@@ -132,7 +132,7 @@ const Computer = struct {
             self.rams[0].ram[3].stat[3],
         });
 
-        // while (!(zeys.isPressed(zeys.VK.VK_RETURN))) {}
+        while (!(zeys.isPressed(zeys.VK.VK_RETURN))) {}
     }
 
     fn sync(self: *Computer, t: u2, num: u4) void {
