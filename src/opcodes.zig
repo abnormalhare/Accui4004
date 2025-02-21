@@ -171,7 +171,9 @@ fn OP_7x(self: *Intel4004) void {
         return;
     }
 
-    self.reg[self.prev_instr & 0xF] += 1;
+    var c: u1 = 0;
+    self.reg[self.prev_instr & 0xF], c = @addWithOverflow(self.reg[self.prev_instr & 0xF], 1);
+    self.carry = c == 1;
 
     if (self.reg[self.prev_instr & 0xF] != 0) {
         self.stack[0] = (self.stack[0] & 0xF00) + @as(u12, self.instr);
