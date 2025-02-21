@@ -156,7 +156,10 @@ fn OP_5x(self: *Intel4004) void {
 fn OP_6x(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
-    self.reg[self.instr & 0x0F] += 1;
+    var c: u1 = 0;
+
+    self.reg[self.instr & 0x0F], c = @addWithOverflow(self.reg[self.instr & 0x0F], 1);
+    self.carry = c == 1;
 }
 
 // ISZ

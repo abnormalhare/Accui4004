@@ -15,8 +15,8 @@ const Computer = struct {
     rams: [4]*Intel4002,
 
     fn print_state(self: *Computer) void {
-        // std.debug.print("\x1B[H", .{});
-        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n> RAM:\n  > {X:0>1}\n\n", .{
+        std.debug.print("\x1B[H", .{});
+        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
             self.cpu.instr,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
@@ -36,7 +36,25 @@ const Computer = struct {
             self.cpu.reg[13],
             self.cpu.reg[14],
             self.cpu.reg[15],
+        });
+
+        std.debug.print("> RAM:\n  > 0x{X:0>1}{X:0>1}{X:0>1}{X:0>1}\n  > 0x{X:0>1}{X:0>1}{X:0>1}{X:0>1}\n  > 0x{X:0>1}{X:0>1}{X:0>1}{X:0>1}\n  > 0x{X:0>1}{X:0>1}{X:0>1}{X:0>1}", .{
             self.rams[0].ram[0].data[0],
+            self.rams[0].ram[0].data[1],
+            self.rams[0].ram[0].data[2],
+            self.rams[0].ram[0].data[3],
+            self.rams[0].ram[0].data[4],
+            self.rams[0].ram[0].data[5],
+            self.rams[0].ram[0].data[6],
+            self.rams[0].ram[0].data[7],
+            self.rams[0].ram[0].data[8],
+            self.rams[0].ram[0].data[9],
+            self.rams[0].ram[0].data[10],
+            self.rams[0].ram[0].data[11],
+            self.rams[0].ram[0].data[12],
+            self.rams[0].ram[0].data[13],
+            self.rams[0].ram[0].data[14],
+            self.rams[0].ram[0].data[15],
         });
     }
 
