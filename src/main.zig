@@ -14,7 +14,9 @@ const Computer = struct {
     roms: [16]*Intel4001,
     rams: [4]*Intel4002,
 
-    fn print_state(self: *Computer) void {
+    fn print_state(self: *Computer) !void {
+        // while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+
         std.debug.print("\x1B[H", .{});
         std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
             self.cpu.instr,
@@ -129,6 +131,8 @@ const Computer = struct {
             self.rams[0].ram[3].stat[2],
             self.rams[0].ram[3].stat[3],
         });
+
+        // while (!(zeys.isPressed(zeys.VK.VK_RETURN))) {}
     }
 
     fn sync(self: *Computer, t: u2, num: u4) void {
@@ -165,7 +169,7 @@ const Computer = struct {
         }
     }
 
-    fn tick(self: *Computer) void {
+    fn tick(self: *Computer) !void {
         self.cpu.tick();
         self.sync(0, 0);
 
@@ -178,7 +182,7 @@ const Computer = struct {
             self.sync(2, ram.*.chip_num);
         }
 
-        if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) self.print_state();
+        if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.print_state();
 
         Clock.p1 = false;
         Clock.p2 = false;
@@ -288,7 +292,7 @@ pub fn main() !void {
         if (Clock.p2) {
             count += 1;
         }
-        comp.tick();
+        try comp.tick();
         if (count == 64) {
             comp.cpu.reset = false;
             for (&comp.roms) |*rom| {

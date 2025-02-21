@@ -101,7 +101,7 @@ fn OP_FIN(self: *Intel4004, reg: u4) void {
     }
 
     self.reg[reg + 0] = @intCast(self.instr >> 4);
-    self.reg[reg + 1] = @intCast(self.instr >> 0);
+    self.reg[reg + 1] = @truncate(self.instr);
 }
 
 fn OP_JIN(self: *Intel4004, reg: u4) void {
