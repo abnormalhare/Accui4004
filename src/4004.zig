@@ -52,9 +52,9 @@ pub const Intel4004 = struct {
                     self.cm = 1;
                     self.buffer = @intCast((self.stack[0] >> 8) % 16);
                 },
-                TIMING.A2 => self.buffer += @intCast((self.stack[0] >> 4) % 16),
+                TIMING.A2 => self.buffer = @intCast((self.stack[0] >> 4) % 16),
                 TIMING.A3 => {
-                    self.buffer += @intCast((self.stack[0] >> 0) % 16);
+                    self.buffer = @intCast((self.stack[0] >> 0) % 16);
                     self.cm = 0;
                     self.stack[0] += 1;
                 },

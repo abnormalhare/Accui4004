@@ -16,8 +16,9 @@ const Computer = struct {
 
     fn print_state(self: *Computer) void {
         std.debug.print("\x1B[H", .{});
-        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
+        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
             self.cpu.instr,
+            self.cpu.stack[0],
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.cpu.reg[0],
@@ -276,6 +277,9 @@ pub fn main() !void {
     for (&comp.roms) |*rom| {
         rom.*.reset = true;
     }
+    for (&comp.rams) |*ram| {
+        ram.*.reset = true;
+    }
     while (true) {
         Clock.tick();
         if (Clock.p2) {
@@ -286,6 +290,9 @@ pub fn main() !void {
             comp.cpu.reset = false;
             for (&comp.roms) |*rom| {
                 rom.*.reset = false;
+            }
+            for (&comp.rams) |*ram| {
+                ram.*.reset = false;
             }
         }
         // if (count == 64 + (4 * 8)) {

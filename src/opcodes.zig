@@ -224,7 +224,7 @@ fn OP_Cx(self: *Intel4004) void {
     self.stack[1] = self.stack[2];
     self.stack[2] = self.stack[3];
 
-    self.acc = @intCast(self.instr);
+    self.acc = @truncate(self.instr);
 }
 
 // LDM
