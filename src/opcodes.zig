@@ -28,10 +28,10 @@ fn OP_1x(self: *Intel4004) void {
 
     const cond_int: u4 = @intCast(self.prev_instr & 0x0F);
     const conditions: conditional = .{
-        .invert = (cond_int & 1) == 1,
-        .isAccZero = (cond_int & 2) == 1,
-        .isCarry = (cond_int & 4) == 1,
-        .isTest = (cond_int & 8) == 1,
+        .invert = (cond_int & 8) == 8,
+        .isAccZero = (cond_int & 4) == 4,
+        .isCarry = (cond_int & 2) == 2,
+        .isTest = (cond_int & 1) == 1,
     };
     const jmp: u4 = @intCast((self.prev_instr & 0xF0) >> 4);
 
