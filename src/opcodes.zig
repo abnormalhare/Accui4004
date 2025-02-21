@@ -3,7 +3,7 @@ const std = @import("std");
 const Intel4004 = @import("4004.zig").Intel4004;
 const TIMING = @import("enum.zig").TIMING;
 
-const opfunc = *const fn(self: *Intel4004) void;
+const opfunc = *const fn (self: *Intel4004) void;
 
 const conditional = struct {
     invert: bool,
@@ -20,7 +20,7 @@ fn OP_0x(self: *Intel4004) void {
 // JCN
 fn OP_1x(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
-    
+
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
         return;
@@ -28,27 +28,25 @@ fn OP_1x(self: *Intel4004) void {
 
     const cond_int: u4 = @intCast(self.prev_instr & 0x0F);
     const conditions: conditional = .{
-        .invert    = (cond_int & 1) == 1,
+        .invert = (cond_int & 1) == 1,
         .isAccZero = (cond_int & 2) == 1,
-        .isCarry   = (cond_int & 4) == 1,
-        .isTest    = (cond_int & 8) == 1,
+        .isCarry = (cond_int & 4) == 1,
+        .isTest = (cond_int & 8) == 1,
     };
     const jmp: u4 = @intCast((self.prev_instr & 0xF0) >> 4);
 
     if (!conditions.invert) {
-        if (
-            (!conditions.isAccZero or (conditions.isAccZero and self.acc == 0)) and
-            (!conditions.isCarry   or (conditions.isCarry   and self.carry           )) and
-            (!conditions.isTest    or (conditions.isTest    and self.testP           ))
-        ) {
+        if ((!conditions.isAccZero or (conditions.isAccZero and self.acc == 0)) and
+            (!conditions.isCarry or (conditions.isCarry and self.carry)) and
+            (!conditions.isTest or (conditions.isTest and self.testP)))
+        {
             self.stack[0] = jmp;
         }
     } else {
-        if (
-            (!conditions.isAccZero or (conditions.isAccZero and self.acc != 0)) and
-            (!conditions.isCarry   or (conditions.isCarry   and !self.carry          )) and
-            (!conditions.isTest    or (conditions.isTest    and !self.testP          ))
-        ) {
+        if ((!conditions.isAccZero or (conditions.isAccZero and self.acc != 0)) and
+            (!conditions.isCarry or (conditions.isCarry and !self.carry)) and
+            (!conditions.isTest or (conditions.isTest and !self.testP)))
+        {
             self.stack[0] = jmp;
         }
     }
@@ -58,7 +56,7 @@ fn OP_1x(self: *Intel4004) void {
 
 fn OP_FIM(self: *Intel4004, reg: u4) void {
     if (self.step != TIMING.X1) return;
-    
+
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
         return;
@@ -78,7 +76,7 @@ fn OP_SRC(self: *Intel4004, reg: u4) void {
             self.buffer = self.reg[reg + 0];
         },
         TIMING.X3 => self.buffer = self.reg[reg + 1],
-        else => {}
+        else => {},
     }
 }
 
@@ -94,7 +92,7 @@ fn OP_2x(self: *Intel4004) void {
 var nextIsData: bool = false;
 fn OP_FIN(self: *Intel4004, reg: u4) void {
     if (self.step != TIMING.X1) return;
-    
+
     if (self.prev_instr == 0) {
         self.prev_instr = self.instr;
 
@@ -182,7 +180,7 @@ fn OP_7x(self: *Intel4004) void {
 // ADD
 fn OP_8x(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
-    
+
     var c: u1 = 0;
     self.acc, c = @addWithOverflow(self.acc, self.reg[self.instr & 0x0F]);
     self.carry = c == 1;
@@ -232,19 +230,31 @@ fn OP_Dx(self: *Intel4004) void {
 }
 
 fn OP_Ex(self: *Intel4004) void {
-    if (self.step != TIMING.X2) return;
-    
-    switch (self.instr & 0x0F) {
-        0...7 => {
-            self.buffer = self.acc;
+    switch (self.step) {
+        TIMING.X2 => self.buffer = self.acc,
+        TIMING.X3 => switch (self.instr & 0x0F) {
+            9...10, 12...15 => {
+                self.acc = self.buffer;
+            },
+            8 => {
+                var c: u1 = 0;
+                self.acc, c = @subWithOverflow(self.acc, self.buffer);
+                self.carry = c == 1;
+            },
+            11 => {
+                var c: u1 = 0;
+                self.acc, c = @addWithOverflow(self.acc, self.buffer);
+                self.carry = c == 1;
+            },
+            else => {},
         },
-        else => {}
+        else => {},
     }
 }
 
 fn OP_Fx(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
-    
+
     switch (self.instr & 0x0F) {
         0 => {
             self.carry = false;
@@ -285,21 +295,13 @@ fn OP_Fx(self: *Intel4004) void {
             }
         },
         12 => {
-            if (self.acc <= 2) return
-            else if (self.acc == 4) self.acc = 3
-            else if (self.acc == 8) self.acc = 4
-            else self.acc = 15;
+            if (self.acc <= 2) return else if (self.acc == 4) self.acc = 3 else if (self.acc == 8) self.acc = 4 else self.acc = 15;
         },
         13 => {
             self.cmram = self.acc;
         },
-        else => {}
+        else => {},
     }
 }
 
-pub const op_list: [16]opfunc = [_]opfunc{
-    OP_0x, OP_1x, OP_2x, OP_3x,
-    OP_4x, OP_5x, OP_6x, OP_7x,
-    OP_8x, OP_9x, OP_Ax, OP_Bx,
-    OP_Cx, OP_Dx, OP_Ex, OP_Fx
-};
+pub const op_list: [16]opfunc = [_]opfunc{ OP_0x, OP_1x, OP_2x, OP_3x, OP_4x, OP_5x, OP_6x, OP_7x, OP_8x, OP_9x, OP_Ax, OP_Bx, OP_Cx, OP_Dx, OP_Ex, OP_Fx };

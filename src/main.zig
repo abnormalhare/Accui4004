@@ -14,11 +14,37 @@ const Computer = struct {
     roms: [16]*Intel4001,
     rams: [4]*Intel4002,
 
+    fn print_state(self: *Computer) void {
+        // std.debug.print("\x1B[H", .{});
+        std.debug.print("|| INSTR: 0x{X:0>2} ||\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n> RAM:\n  > {X:0>1}\n\n", .{
+            self.cpu.instr,
+            self.cpu.acc,
+            @intFromBool(self.cpu.carry),
+            self.cpu.reg[0],
+            self.cpu.reg[1],
+            self.cpu.reg[2],
+            self.cpu.reg[3],
+            self.cpu.reg[4],
+            self.cpu.reg[5],
+            self.cpu.reg[6],
+            self.cpu.reg[7],
+            self.cpu.reg[8],
+            self.cpu.reg[9],
+            self.cpu.reg[10],
+            self.cpu.reg[11],
+            self.cpu.reg[12],
+            self.cpu.reg[13],
+            self.cpu.reg[14],
+            self.cpu.reg[15],
+            self.rams[0].ram[0].data[0],
+        });
+    }
+
     fn sync(self: *Computer, t: u2, num: u4) void {
         var bus: u4 = 0;
         const cmrom: u1 = self.cpu.cm;
         const cmram: u1 = @truncate(self.cpu.cmram & 1);
-        
+
         if (t == 0) { // cpu
             bus = self.cpu.buffer;
         } else if (t == 1) { // roms
@@ -51,7 +77,7 @@ const Computer = struct {
     fn tick(self: *Computer) void {
         self.cpu.tick();
         self.sync(0, 0);
-        
+
         for (&self.roms) |*rom| {
             rom.*.tick();
             self.sync(1, rom.*.chip_num);
@@ -60,6 +86,8 @@ const Computer = struct {
             ram.*.tick();
             self.sync(2, ram.*.chip_num);
         }
+
+        if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) self.print_state();
 
         Clock.p1 = false;
         Clock.p2 = false;
@@ -79,9 +107,11 @@ const Computer = struct {
         defer file.close();
 
         var str: [0x100 * 0x10]u8 = [_]u8{0} ** (0x100 * 0x10);
-        var checkStr: [3]u8 = .{0, 0, 0};
+        var checkStr: [3]u8 = .{ 0, 0, 0 };
         _ = try file.read(&checkStr);
-        if (!std.mem.eql(u8, &checkStr, "i44")) { return error.NotI4004File; }
+        if (!std.mem.eql(u8, &checkStr, "i44")) {
+            return error.NotI4004File;
+        }
 
         try file.seekTo(0x10);
         _ = try file.read(&str);

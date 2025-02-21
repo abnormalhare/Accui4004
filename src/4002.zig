@@ -14,12 +14,12 @@ pub const Intel4002 = struct {
     ram: [4]reg,
 
     buffer: u4,
-    io: u4,  // output only
+    io: u4, // output only
     sync: u1,
     cm: u1,
     reset: bool,
     is_chip: bool,
-    
+
     data: u4,
     char: u2,
     chip_num: u2,
@@ -29,7 +29,7 @@ pub const Intel4002 = struct {
 
     pub fn init(chip_num: u2) !*Intel4002 {
         const i: *Intel4002 = try alloc.create(Intel4002);
-        
+
         i.chip_num = chip_num;
         i.is_chip = false;
 
@@ -37,7 +37,6 @@ pub const Intel4002 = struct {
     }
 
     fn interpret(self: *Intel4002) void {
-        std.debug.print("RAM INTERPRET: {X}\n", .{self.instr});
         switch (self.instr) {
             0 => {
                 self.ram[self.char].data[self.data] = self.buffer;
@@ -48,21 +47,13 @@ pub const Intel4002 = struct {
             4...7 => {
                 self.ram[self.char].stat[self.instr - 4] = self.buffer;
             },
-            8 => {
-                // implement borrow
-                self.buffer, _ = @subWithOverflow(self.buffer, self.ram[self.char].data[self.data]);
-            },
-            9 => {
+            8...9, 11 => {
                 self.buffer = self.ram[self.char].data[self.data];
-            },
-            11 => {
-                // implement carry
-                self.buffer, _ = @addWithOverflow(self.buffer, self.ram[self.char].data[self.data]);
             },
             12...15 => {
                 self.buffer = self.ram[self.char].stat[self.instr - 12];
             },
-            else => {}
+            else => {},
         }
 
         self.is_chip = false;
@@ -76,18 +67,15 @@ pub const Intel4002 = struct {
             return;
         }
 
-
         if (Clock.p2) {
             switch (self.step) {
                 TIMING.M2 => {
                     if (self.cm == 1 and self.is_chip) {
-                        std.debug.print("RAM HIT 3\n", .{});
                         self.instr = self.buffer;
                     }
                 },
                 TIMING.X2 => {
                     if (self.cm == 1) {
-                        std.debug.print("RAM HIT\n", .{});
                         self.checkRAM(self.buffer);
                     } else if (self.is_chip) {
                         self.interpret();
@@ -95,11 +83,10 @@ pub const Intel4002 = struct {
                 },
                 TIMING.X3 => {
                     if (self.is_chip) {
-                        std.debug.print("RAM HIT 2\n", .{});
                         self.setupRAM();
                     }
                 },
-                else => {}
+                else => {},
             }
             incStep(&self.step);
         }
