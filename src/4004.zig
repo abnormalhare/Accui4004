@@ -20,6 +20,7 @@ pub const Intel4004 = struct {
 
     sync: u1,
     cm: u1,
+    set_cmram: u4,
     cmram: u4,
     testP: bool,
     reset: bool,
@@ -112,6 +113,7 @@ pub const Intel4004 = struct {
         self.sync = 0;
         self.cm = 0;
         self.cmram = 0;
+        self.set_cmram = 0;
         self.testP = false;
     }
 };
