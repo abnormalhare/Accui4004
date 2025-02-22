@@ -72,7 +72,7 @@ fn OP_SRC(self: *Intel4004, reg: u4) void {
     switch (self.step) {
         TIMING.X2 => {
             self.cm = 1;
-            self.cmram = if (self.set_cmram == 0) 1 else self.set_cmram;
+            self.cmram = self.bank;
             self.buffer = self.reg[reg + 0];
         },
         TIMING.X3 => self.buffer = self.reg[reg + 1],
@@ -315,7 +315,17 @@ fn OP_Fx(self: *Intel4004) void {
             if (self.acc <= 2) return else if (self.acc == 4) self.acc = 3 else if (self.acc == 8) self.acc = 4 else self.acc = 15;
         },
         13 => {
-            self.set_cmram = self.acc;
+            switch (self.acc & 0x7) {
+                0 => self.bank = 1,
+                1 => self.bank = 2,
+                2 => self.bank = 4,
+                3 => self.bank = 8,
+                4 => self.bank = 6,
+                5 => self.bank = 10,
+                6 => self.bank = 12,
+                7 => self.bank = 15,
+                else => {},
+            }
         },
         else => {},
     }

@@ -13,11 +13,17 @@ const Computer = struct {
     cpu: *Intel4004,
     roms: [16]*Intel4001,
     rams: [16]*Intel4002,
+    r: u4 = 0,
 
     fn print_state(self: *Computer) !void {
-        while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+        if (zeys.isPressed(zeys.VK.VK_LEFT)) {
+            self.r, _ = @subWithOverflow(self.r, 1);
+        } else if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
+            self.r, _ = @addWithOverflow(self.r, 1);
+        }
+        while (zeys.isPressed(zeys.VK.VK_LEFT) or zeys.isPressed(zeys.VK.VK_RIGHT)) {}
 
-        // std.debug.print("\x1B[H", .{});
+        std.debug.print("\x1B[H", .{});
         std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
@@ -41,98 +47,97 @@ const Computer = struct {
             self.cpu.reg[15],
         });
 
-        std.debug.print("> RAM:\n  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
-            self.rams[4].ram[0].data[0],
-            self.rams[4].ram[0].data[1],
-            self.rams[4].ram[0].data[2],
-            self.rams[4].ram[0].data[3],
-            self.rams[4].ram[1].data[0],
-            self.rams[4].ram[1].data[1],
-            self.rams[4].ram[1].data[2],
-            self.rams[4].ram[1].data[3],
-            self.rams[4].ram[2].data[0],
-            self.rams[4].ram[2].data[1],
-            self.rams[4].ram[2].data[2],
-            self.rams[4].ram[2].data[3],
-            self.rams[4].ram[3].data[0],
-            self.rams[4].ram[3].data[1],
-            self.rams[4].ram[3].data[2],
-            self.rams[4].ram[3].data[3],
+        std.debug.print("> RAM {X}:\n  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
+            self.r,
+            self.rams[self.r].ram[0].data[0],
+            self.rams[self.r].ram[0].data[1],
+            self.rams[self.r].ram[0].data[2],
+            self.rams[self.r].ram[0].data[3],
+            self.rams[self.r].ram[1].data[0],
+            self.rams[self.r].ram[1].data[1],
+            self.rams[self.r].ram[1].data[2],
+            self.rams[self.r].ram[1].data[3],
+            self.rams[self.r].ram[2].data[0],
+            self.rams[self.r].ram[2].data[1],
+            self.rams[self.r].ram[2].data[2],
+            self.rams[self.r].ram[2].data[3],
+            self.rams[self.r].ram[3].data[0],
+            self.rams[self.r].ram[3].data[1],
+            self.rams[self.r].ram[3].data[2],
+            self.rams[self.r].ram[3].data[3],
         });
         std.debug.print("  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
-            self.rams[4].ram[0].data[4],
-            self.rams[4].ram[0].data[5],
-            self.rams[4].ram[0].data[6],
-            self.rams[4].ram[0].data[7],
-            self.rams[4].ram[1].data[4],
-            self.rams[4].ram[1].data[5],
-            self.rams[4].ram[1].data[6],
-            self.rams[4].ram[1].data[7],
-            self.rams[4].ram[2].data[4],
-            self.rams[4].ram[2].data[5],
-            self.rams[4].ram[2].data[6],
-            self.rams[4].ram[2].data[7],
-            self.rams[4].ram[3].data[4],
-            self.rams[4].ram[3].data[5],
-            self.rams[4].ram[3].data[6],
-            self.rams[4].ram[3].data[7],
+            self.rams[self.r].ram[0].data[4],
+            self.rams[self.r].ram[0].data[5],
+            self.rams[self.r].ram[0].data[6],
+            self.rams[self.r].ram[0].data[7],
+            self.rams[self.r].ram[1].data[4],
+            self.rams[self.r].ram[1].data[5],
+            self.rams[self.r].ram[1].data[6],
+            self.rams[self.r].ram[1].data[7],
+            self.rams[self.r].ram[2].data[4],
+            self.rams[self.r].ram[2].data[5],
+            self.rams[self.r].ram[2].data[6],
+            self.rams[self.r].ram[2].data[7],
+            self.rams[self.r].ram[3].data[4],
+            self.rams[self.r].ram[3].data[5],
+            self.rams[self.r].ram[3].data[6],
+            self.rams[self.r].ram[3].data[7],
         });
         std.debug.print("  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
-            self.rams[4].ram[0].data[8],
-            self.rams[4].ram[0].data[9],
-            self.rams[4].ram[0].data[10],
-            self.rams[4].ram[0].data[11],
-            self.rams[4].ram[1].data[8],
-            self.rams[4].ram[1].data[9],
-            self.rams[4].ram[1].data[10],
-            self.rams[4].ram[1].data[11],
-            self.rams[4].ram[2].data[8],
-            self.rams[4].ram[2].data[9],
-            self.rams[4].ram[2].data[10],
-            self.rams[4].ram[2].data[11],
-            self.rams[4].ram[3].data[8],
-            self.rams[4].ram[3].data[9],
-            self.rams[4].ram[3].data[10],
-            self.rams[4].ram[3].data[11],
+            self.rams[self.r].ram[0].data[8],
+            self.rams[self.r].ram[0].data[9],
+            self.rams[self.r].ram[0].data[10],
+            self.rams[self.r].ram[0].data[11],
+            self.rams[self.r].ram[1].data[8],
+            self.rams[self.r].ram[1].data[9],
+            self.rams[self.r].ram[1].data[10],
+            self.rams[self.r].ram[1].data[11],
+            self.rams[self.r].ram[2].data[8],
+            self.rams[self.r].ram[2].data[9],
+            self.rams[self.r].ram[2].data[10],
+            self.rams[self.r].ram[2].data[11],
+            self.rams[self.r].ram[3].data[8],
+            self.rams[self.r].ram[3].data[9],
+            self.rams[self.r].ram[3].data[10],
+            self.rams[self.r].ram[3].data[11],
         });
         std.debug.print("  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n\n", .{
-            self.rams[4].ram[0].data[12],
-            self.rams[4].ram[0].data[13],
-            self.rams[4].ram[0].data[14],
-            self.rams[4].ram[0].data[15],
-            self.rams[4].ram[1].data[12],
-            self.rams[4].ram[1].data[13],
-            self.rams[4].ram[1].data[14],
-            self.rams[4].ram[1].data[15],
-            self.rams[4].ram[2].data[12],
-            self.rams[4].ram[2].data[13],
-            self.rams[4].ram[2].data[14],
-            self.rams[4].ram[2].data[15],
-            self.rams[4].ram[3].data[12],
-            self.rams[4].ram[3].data[13],
-            self.rams[4].ram[3].data[14],
-            self.rams[4].ram[3].data[15],
+            self.rams[self.r].ram[0].data[12],
+            self.rams[self.r].ram[0].data[13],
+            self.rams[self.r].ram[0].data[14],
+            self.rams[self.r].ram[0].data[15],
+            self.rams[self.r].ram[1].data[12],
+            self.rams[self.r].ram[1].data[13],
+            self.rams[self.r].ram[1].data[14],
+            self.rams[self.r].ram[1].data[15],
+            self.rams[self.r].ram[2].data[12],
+            self.rams[self.r].ram[2].data[13],
+            self.rams[self.r].ram[2].data[14],
+            self.rams[self.r].ram[2].data[15],
+            self.rams[self.r].ram[3].data[12],
+            self.rams[self.r].ram[3].data[13],
+            self.rams[self.r].ram[3].data[14],
+            self.rams[self.r].ram[3].data[15],
         });
         std.debug.print("  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
-            self.rams[4].ram[0].stat[0],
-            self.rams[4].ram[0].stat[1],
-            self.rams[4].ram[0].stat[2],
-            self.rams[4].ram[0].stat[3],
-            self.rams[4].ram[1].stat[0],
-            self.rams[4].ram[1].stat[1],
-            self.rams[4].ram[1].stat[2],
-            self.rams[4].ram[1].stat[3],
-            self.rams[4].ram[2].stat[0],
-            self.rams[4].ram[2].stat[1],
-            self.rams[4].ram[2].stat[2],
-            self.rams[4].ram[2].stat[3],
-            self.rams[4].ram[3].stat[0],
-            self.rams[4].ram[3].stat[1],
-            self.rams[4].ram[3].stat[2],
-            self.rams[4].ram[3].stat[3],
+            self.rams[self.r].ram[0].stat[0],
+            self.rams[self.r].ram[0].stat[1],
+            self.rams[self.r].ram[0].stat[2],
+            self.rams[self.r].ram[0].stat[3],
+            self.rams[self.r].ram[1].stat[0],
+            self.rams[self.r].ram[1].stat[1],
+            self.rams[self.r].ram[1].stat[2],
+            self.rams[self.r].ram[1].stat[3],
+            self.rams[self.r].ram[2].stat[0],
+            self.rams[self.r].ram[2].stat[1],
+            self.rams[self.r].ram[2].stat[2],
+            self.rams[self.r].ram[2].stat[3],
+            self.rams[self.r].ram[3].stat[0],
+            self.rams[self.r].ram[3].stat[1],
+            self.rams[self.r].ram[3].stat[2],
+            self.rams[self.r].ram[3].stat[3],
         });
-
-        while (!(zeys.isPressed(zeys.VK.VK_RETURN))) {}
     }
 
     fn sync(self: *Computer, t: u2, num: u4) void {
@@ -237,6 +242,7 @@ const Computer = struct {
     pub fn init(filename: []u8) !*Computer {
         const self: *Computer = try alloc.create(Computer);
 
+        self.r = 0;
         self.cpu = try Intel4004.init();
         var fileROM: *u4 = try self.getROM(filename);
 
