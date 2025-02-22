@@ -195,7 +195,8 @@ fn OP_8x(self: *Intel4004) void {
 fn OP_9x(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
-    if (@as(u5, self.acc) - @as(u5, self.reg[self.instr & 0x0F]) > 0xF)
+    const temp: u5, _ = @subWithOverflow(@as(u5, self.acc), @as(u5, self.reg[self.instr & 0x0F]));
+    if (temp > 0xF)
         self.carry = false;
     self.acc, _ = @subWithOverflow(self.acc, self.reg[self.instr & 0x0F]);
 }
@@ -231,7 +232,7 @@ fn OP_Cx(self: *Intel4004) void {
 fn OP_Dx(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
-    self.acc = @truncate(self.instr);
+    self.acc = @truncate(self.instr & 7);
 }
 
 fn OP_Ex(self: *Intel4004) void {
