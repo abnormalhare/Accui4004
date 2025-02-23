@@ -5,6 +5,7 @@ const zeys = @import("zeys");
 const Intel4001 = @import("4001.zig").Intel4001;
 const Intel4004 = @import("4004.zig").Intel4004;
 const Intel4002 = @import("4002.zig").Intel4002;
+const Controller = @import("controller.zig").Controller;
 const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("clock.zig");
 
@@ -13,6 +14,7 @@ const Computer = struct {
     cpu: *Intel4004,
     roms: [16]*Intel4001,
     rams: [16]*Intel4002,
+    controller: *Controller,
     r: u4 = 0,
 
     fn print_state(self: *Computer) !void {
@@ -140,6 +142,7 @@ const Computer = struct {
         });
     }
 
+    // layout: 1 CPU, 16 ROM, 16 RAM, Controller connected to ROM 0
     fn sync(self: *Computer, t: u2, num: u4) void {
         var bus: u4 = 0;
         const cmrom: u1 = self.cpu.cm;
@@ -149,8 +152,13 @@ const Computer = struct {
             bus = self.cpu.buffer;
         } else if (t == 1) { // roms
             bus = self.roms[num].buffer;
-        } else { // rams
+            if (num == 0) {
+                self.controller.io = self.roms[0].io;
+            }
+        } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
+        } else { // controller
+            self.roms[0].io = self.controller.io;
         }
 
         self.cpu.buffer = bus;
@@ -158,6 +166,7 @@ const Computer = struct {
             rom.*.buffer = bus;
             rom.*.cm = cmrom;
         }
+        self.roms[0].io = self.controller.io;
 
         var i: u8 = 0;
         for (&self.rams) |*ram| {
@@ -191,6 +200,8 @@ const Computer = struct {
             ram.*.tick();
             self.sync(2, ram.*.chip_num);
         }
+
+        self.controller.tick();
 
         if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.print_state();
 
@@ -261,6 +272,8 @@ const Computer = struct {
             self.rams[i] = try Intel4002.init(@truncate(i));
             i += 1;
         }
+
+        self.controller = try Controller.init();
 
         return self;
     }
