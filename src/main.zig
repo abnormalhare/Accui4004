@@ -26,7 +26,7 @@ const Computer = struct {
         while (zeys.isPressed(zeys.VK.VK_LEFT) or zeys.isPressed(zeys.VK.VK_RIGHT)) {}
 
         std.debug.print("\x1B[H", .{});
-        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\nCONT: {X}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
+        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
             self.cpu.acc,
