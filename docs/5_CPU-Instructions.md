@@ -45,10 +45,10 @@ Subtract. Subtracts register `RR` from the accumulator with borrow.
 Load. Loads register `RR` into the accumulator.
 ### 0xBX - `XCH RR`
 Exchange. Exchanges the data between register `RR` and the accumulator.
-### 0xCX - `BBL DD`
-Branch Back. Essentially, a return function. Pushes the stack back down and sets the accumulator to `DD`.
+### 0xCX - `BBL D`
+Branch Back. Essentially, a return function. Pushes the stack back down and sets the accumulator to `D`.
 ### 0xDX - `LDM DD`
-Load Immediate. Loads `DD` into the accumulator.
+Load Immediate. Loads `D` into the accumulator.
 ## Specific Instructions
 These are instructions that do not use data from the instruction itself.
 ### 0xEX - Communication Instructions

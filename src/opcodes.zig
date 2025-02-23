@@ -33,21 +33,21 @@ fn OP_1x(self: *Intel4004) void {
         .isCarry = (cond_int & 2) == 2,
         .isTest = (cond_int & 1) == 1,
     };
-    const jmp: u4 = @intCast((self.prev_instr & 0xF0) >> 4);
+    const jmp: u8 = self.instr;
 
     if (!conditions.invert) {
         if ((!conditions.isAccZero or (conditions.isAccZero and self.acc == 0)) and
             (!conditions.isCarry or (conditions.isCarry and self.carry)) and
             (!conditions.isTest or (conditions.isTest and self.testP)))
         {
-            self.stack[0] = jmp;
+            self.stack[0] = (self.stack[0] & 0xF00) + @as(u12, jmp);
         }
     } else {
         if ((!conditions.isAccZero or (conditions.isAccZero and self.acc != 0)) and
             (!conditions.isCarry or (conditions.isCarry and !self.carry)) and
             (!conditions.isTest or (conditions.isTest and !self.testP)))
         {
-            self.stack[0] = jmp;
+            self.stack[0] = (self.stack[0] & 0xF00) + @as(u12, jmp);
         }
     }
 
