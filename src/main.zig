@@ -1,11 +1,16 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
 const zeys = @import("zeys");
+const romcopy = @import("romcopy.zig");
 
 const Intel4001 = @import("4001.zig").Intel4001;
 const Intel4004 = @import("4004.zig").Intel4004;
 const Intel4002 = @import("4002.zig").Intel4002;
+const Intel3205 = @import("3205.zig").Intel3205;
+
+const EmptyPort = @import("emptyport.zig").EmptyPort;
 const Controller = @import("controller.zig").Controller;
+
 const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("clock.zig");
 
@@ -13,9 +18,10 @@ const Computer = struct {
     enable_state: u8,
     cpu: *Intel4004,
     roms: [16]*Intel4001,
-    rams: [16]*Intel4002,
+    rams: [32]*Intel4002,
     controller: *Controller,
-    r: u4 = 0,
+    decoder: *Intel3205,
+    r: u5 = 0,
 
     fn print_state(self: *Computer) !void {
         if (zeys.isPressed(zeys.VK.VK_LEFT)) {
@@ -26,12 +32,16 @@ const Computer = struct {
         while (zeys.isPressed(zeys.VK.VK_LEFT) or zeys.isPressed(zeys.VK.VK_RIGHT)) {}
 
         std.debug.print("\x1B[H", .{});
-        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X}\n> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
+        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X}\n> DECODER: {any}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.controller.io,
+            self.decoder.out,
+        });
+
+        std.debug.print("> REGS:\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n  > 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}\n", .{
             self.cpu.reg[0],
             self.cpu.reg[1],
             self.cpu.reg[2],
@@ -50,7 +60,7 @@ const Computer = struct {
             self.cpu.reg[15],
         });
 
-        std.debug.print("> RAM {X}:\n  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
+        std.debug.print("> RAM {X}: \n  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
             self.r,
             self.rams[self.r].ram[0].data[0],
             self.rams[self.r].ram[0].data[1],
@@ -143,14 +153,16 @@ const Computer = struct {
         });
     }
 
+    // this emulates the motherboard
     // layout: 1 CPU, 16 ROM, 16 RAM, Controller connected to ROM 0
-    fn sync(self: *Computer, t: u2, num: u4) void {
+    // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
+    fn sync(self: *Computer, t: u3, num: u4) void {
         var bus: u4 = 0;
         const cmrom: u1 = self.cpu.cm;
-        const cmram: u4 = self.cpu.cmram;
 
         if (t == 0) { // cpu
             bus = self.cpu.buffer;
+            self.decoder.in = @intCast(self.cpu.cmram >> 1);
         } else if (t == 1) { // roms
             bus = self.roms[num].buffer;
             if (num == 0) {
@@ -158,24 +170,35 @@ const Computer = struct {
             }
         } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
-        } else { // controller
+        } else if (t == 3) { // controller
             self.roms[0].io = self.controller.io;
         }
 
-        self.cpu.buffer = bus;
+        // CPU
+        self.cpu.buffer = if (t < 3) bus else self.cpu.buffer;
+
+        // ROM
         for (&self.roms) |*rom| {
-            rom.*.buffer = bus;
+            rom.*.buffer = if (t < 3) bus else rom.*.buffer;
             rom.*.cm = cmrom;
         }
         self.roms[0].io = self.controller.io;
 
-        var i: u8 = 0;
+        // RAM
         for (&self.rams) |*ram| {
-            ram.*.buffer = bus;
-            const ii: u2 = @intCast(@divFloor(i, 4));
-            const cm = cmram >> ii;
-            ram.*.cm = @truncate(cm & 1);
-            i += 1;
+            ram.*.buffer = if (t < 3) bus else ram.*.buffer;
+        }
+
+        // Decoder
+        for (self.rams[0x0..0x4]) |*ram| {
+            ram.*.cm = @truncate(self.cpu.cmram & 1);
+        }
+        var i: u8 = 4;
+        while (i < 32) {
+            for (self.rams[i..(i + 4)]) |*ram| {
+                ram.*.cm = self.decoder.out[@divFloor(i, 4)];
+            }
+            i += 4;
         }
 
         if (self.cpu.sync == 1 and self.cpu.step == TIMING.A1) {
@@ -202,7 +225,11 @@ const Computer = struct {
             self.sync(2, ram.*.chip_num);
         }
 
+        self.decoder.tick();
+        self.sync(4, 0);
+
         self.controller.tick();
+        self.sync(3, 0);
 
         if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.print_state();
 
@@ -210,70 +237,35 @@ const Computer = struct {
         Clock.p2 = false;
     }
 
-    fn splitCopyROM(dest: *[0x200 * 0x10]u4, source: [0x100 * 0x10]u8) void {
-        var i: u32 = 0;
-        while (i < 0x200) {
-            dest[i * 2 + 0] = @intCast(source[i] >> 4);
-            dest[i * 2 + 1] = @truncate(source[i]);
-            i += 1;
-        }
-    }
-
-    fn getROM(self: *Computer, filename: []const u8) !*u4 {
-        var file = try std.fs.cwd().openFile(filename, .{});
-        defer file.close();
-
-        var str: [0x100 * 0x10]u8 = [_]u8{0} ** (0x100 * 0x10);
-        var checkStr: [3]u8 = .{ 0, 0, 0 };
-        _ = try file.read(&checkStr);
-        if (!std.mem.eql(u8, &checkStr, "i44")) {
-            return error.NotI4004File;
-        }
-
-        try file.seekTo(0x10);
-        _ = try file.read(&str);
-
-        var rom: [0x200 * 0x10]u4 = [_]u4{0} ** (0x200 * 0x10);
-
-        splitCopyROM(&rom, str);
-
-        _ = self;
-        return &rom[0];
-    }
-
-    fn copyROM(dest: *[0x200]u4, source: *u4) void {
-        var s: *u4 = source;
-        var i: u16 = 0;
-        while (i < 0x200) {
-            dest[i] = s.*;
-            s = @ptrFromInt(@intFromPtr(s) + 1);
-            i += 1;
-        }
-    }
-
     pub fn init(filename: []u8) !*Computer {
         const self: *Computer = try alloc.create(Computer);
 
+        // CPU INIT
         self.r = 0;
         self.cpu = try Intel4004.init();
-        var fileROM: *u4 = try self.getROM(filename);
 
+        // ROM INIT
+        var fileROM: *u4 = try romcopy.getROM(filename);
         var i: u8 = 0;
         while (i < 16) {
             var rom: [0x200]u4 = undefined;
-            copyROM(&rom, fileROM);
+            romcopy.copyROM(&rom, fileROM);
             self.roms[i] = try Intel4001.init(@intCast(i), &rom);
-
-            i, _ = @addWithOverflow(i, 1);
+            i += 1;
             fileROM = @ptrFromInt(@intFromPtr(fileROM) + 0x200);
         }
 
+        // RAM INIT
         i = 0;
-        while (i < 16) {
+        while (i < self.rams.len) {
             self.rams[i] = try Intel4002.init(@truncate(i));
             i += 1;
         }
 
+        // DECODER INIT
+        self.decoder = try Intel3205.init();
+
+        // CONTROLLER INIT
         self.controller = try Controller.init();
 
         return self;
@@ -298,10 +290,7 @@ pub fn main() !void {
     var comp: *Computer = try Computer.init(filename);
     Clock.setTime = std.time.nanoTimestamp();
 
-    // comp = undefined;
-    // return;
-
-    std.debug.print("\x1B[H\x1B[2J", .{});
+    // std.debug.print("\x1B[H\x1B[2J", .{});
 
     // emulate
     var count: u32 = 0;
@@ -327,8 +316,5 @@ pub fn main() !void {
                 ram.*.reset = false;
             }
         }
-        // if (count == 64 + (4 * 8)) {
-        //     break;
-        // }
     }
 }
