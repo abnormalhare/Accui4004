@@ -8,8 +8,8 @@ const Intel4004 = @import("4004.zig").Intel4004;
 const Intel4002 = @import("4002.zig").Intel4002;
 const Intel3205 = @import("3205.zig").Intel3205;
 
-const EmptyPort = @import("emptyport.zig").EmptyPort;
 const Controller = @import("controller.zig").Controller;
+const Display = @import("display.zig").Display;
 
 const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("clock.zig");
@@ -19,8 +19,9 @@ const Computer = struct {
     cpu: *Intel4004,
     roms: [16]*Intel4001,
     rams: [32]*Intel4002,
-    controller: *Controller,
     decoder: *Intel3205,
+    controller: *Controller,
+    display: *Display,
     r: u5 = 0,
 
     fn print_state(self: *Computer) !void {
@@ -133,7 +134,7 @@ const Computer = struct {
             self.rams[self.r].ram[3].data[14],
             self.rams[self.r].ram[3].data[15],
         });
-        std.debug.print("  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n", .{
+        std.debug.print("  > {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1} {X:0>1}{X:0>1}{X:0>1}{X:0>1}\n\n", .{
             self.rams[self.r].ram[0].stat[0],
             self.rams[self.r].ram[0].stat[1],
             self.rams[self.r].ram[0].stat[2],
@@ -151,10 +152,28 @@ const Computer = struct {
             self.rams[self.r].ram[3].stat[2],
             self.rams[self.r].ram[3].stat[3],
         });
+
+        std.debug.print("> DISPLAY\n  /==========\\\n", .{});
+        var i: u8 = 0;
+        while (i < 6) {
+            const s: [8]u8 = [_]u8{
+                if (self.display.disp[i * 8 + 0]) ' ' else '0',
+                if (self.display.disp[i * 8 + 1]) ' ' else '0',
+                if (self.display.disp[i * 8 + 2]) ' ' else '0',
+                if (self.display.disp[i * 8 + 3]) ' ' else '0',
+                if (self.display.disp[i * 8 + 4]) ' ' else '0',
+                if (self.display.disp[i * 8 + 5]) ' ' else '0',
+                if (self.display.disp[i * 8 + 6]) ' ' else '0',
+                if (self.display.disp[i * 8 + 7]) ' ' else '0',
+            };
+            std.debug.print("  | {s} |\n", .{s});
+            i += 1;
+        }
+        std.debug.print("  \\==========/", .{});
     }
 
     // this emulates the motherboard
-    // layout: 1 CPU, 16 ROM, 32 RAM, Controller connected to ROM 0
+    // layout: 1 CPU, 16 ROM, 32 RAM, Controller connected to ROM 0, Display connected to ROM 1
     // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
     fn sync(self: *Computer, t: u3, num: u4) void {
         var bus: u4 = 0;
@@ -167,11 +186,15 @@ const Computer = struct {
             bus = self.roms[num].buffer;
             if (num == 0) {
                 self.controller.io = self.roms[0].io;
+            } else if (num == 1) {
+                self.display.io = self.roms[1].io;
             }
         } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
-        } else if (t == 3) { // controller
+        } else if (t == 4) { // controller
             self.roms[0].io = self.controller.io;
+        } else if (t == 5) { // display
+            self.roms[1].io = self.display.io;
         }
 
         // CPU
@@ -226,10 +249,13 @@ const Computer = struct {
         }
 
         self.decoder.tick();
-        self.sync(4, 0);
+        self.sync(3, 0);
 
         self.controller.tick();
-        self.sync(3, 0);
+        self.sync(4, 0);
+
+        self.display.tick();
+        self.sync(5, 0);
 
         if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.print_state();
 
@@ -267,6 +293,9 @@ const Computer = struct {
 
         // CONTROLLER INIT
         self.controller = try Controller.init();
+
+        // DISPLAY INIT
+        self.display = try Display.init();
 
         return self;
     }
