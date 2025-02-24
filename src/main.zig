@@ -154,7 +154,7 @@ const Computer = struct {
     }
 
     // this emulates the motherboard
-    // layout: 1 CPU, 16 ROM, 16 RAM, Controller connected to ROM 0
+    // layout: 1 CPU, 16 ROM, 32 RAM, Controller connected to ROM 0
     // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
     fn sync(self: *Computer, t: u3, num: u4) void {
         var bus: u4 = 0;
