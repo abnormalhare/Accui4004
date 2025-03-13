@@ -9,7 +9,6 @@ const Intel4002 = @import("4002.zig").Intel4002;
 const Intel3205 = @import("3205.zig").Intel3205;
 
 const Controller = @import("controller.zig").Controller;
-const Display = @import("display.zig").Display;
 
 const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("clock.zig");
@@ -21,7 +20,6 @@ const Computer = struct {
     rams: [32]*Intel4002,
     decoder: *Intel3205,
     controller: *Controller,
-    display: *Display,
     r: u8 = 0,
     threadEnded: bool = true,
     threadEnded2: bool = true,
@@ -48,13 +46,12 @@ const Computer = struct {
 
     fn print_state(self: *Computer) !void {
         std.debug.print("\x1B[H", .{});
-        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X} || ispressed: {any} \n> DECODER: {any}\n", .{
+        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X}\n> DECODER: {any}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.controller.io,
-            self.isPressed,
             self.decoder.out,
         });
 
@@ -169,29 +166,11 @@ const Computer = struct {
             self.rams[self.r].ram[3].stat[3],
         });
 
-        std.debug.print("> DISPLAY\n  /==========\\\n", .{});
-        var i: u8 = 0;
-        while (i < 6) {
-            const s: [8]u8 = [_]u8{
-                if (self.display.disp[i * 8 + 0]) ' ' else '0',
-                if (self.display.disp[i * 8 + 1]) ' ' else '0',
-                if (self.display.disp[i * 8 + 2]) ' ' else '0',
-                if (self.display.disp[i * 8 + 3]) ' ' else '0',
-                if (self.display.disp[i * 8 + 4]) ' ' else '0',
-                if (self.display.disp[i * 8 + 5]) ' ' else '0',
-                if (self.display.disp[i * 8 + 6]) ' ' else '0',
-                if (self.display.disp[i * 8 + 7]) ' ' else '0',
-            };
-            std.debug.print("  | {s} |\n", .{s});
-            i += 1;
-        }
-        std.debug.print("  \\==========/", .{});
-
         self.threadEnded2 = true;
     }
 
     // this emulates the motherboard
-    // layout: 1 CPU, 16 ROM, 32 RAM, Controller connected to ROM 0, Display connected to ROM 1
+    // layout: 1 CPU, 16 ROM, 32 RAM, Controller connected to ROM 0
     // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
     fn sync(self: *Computer, t: u3, num: u4) void {
         var bus: u4 = 0;
@@ -204,15 +183,11 @@ const Computer = struct {
             bus = self.roms[num].buffer;
             if (num == 0) {
                 self.controller.io = self.roms[0].io;
-            } else if (num == 1) {
-                self.display.io = self.roms[1].io;
             }
         } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
         } else if (t == 4) { // controller
             self.roms[0].io = self.controller.io;
-        } else if (t == 5) { // display
-            self.roms[1].io = self.display.io;
         }
 
         // CPU
@@ -272,9 +247,6 @@ const Computer = struct {
         self.controller.tick();
         self.sync(4, 0);
 
-        self.display.tick();
-        self.sync(5, 0);
-
         if (self.threadEnded) {
             self.threadEnded = false;
             const contThread: std.Thread = try std.Thread.spawn(.{}, print_controller_input, .{self});
@@ -323,9 +295,6 @@ const Computer = struct {
 
         // CONTROLLER INIT
         self.controller = try Controller.init();
-
-        // DISPLAY INIT
-        self.display = try Display.init();
 
         // DEBUG INIT
         self.threadEnded = true;
