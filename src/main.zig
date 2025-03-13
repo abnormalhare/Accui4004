@@ -22,23 +22,39 @@ const Computer = struct {
     decoder: *Intel3205,
     controller: *Controller,
     display: *Display,
-    r: u5 = 0,
+    r: u8 = 0,
+    threadEnded: bool = true,
+    threadEnded2: bool = true,
+    isPressed: bool,
+
+    fn print_controller_input(self: *Computer) void {
+        if (!self.isPressed) {
+            if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
+                if (self.r != 0x1F) self.r += 1 else self.r = 0;
+                self.isPressed = true;
+            }
+            if (zeys.isPressed(zeys.VK.VK_LEFT)) {
+                if (self.r != 0) self.r -= 1 else self.r = 0x1F;
+                self.isPressed = true;
+            }
+        } else {
+            if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT)) {
+                self.isPressed = false;
+            }
+        }
+
+        self.threadEnded = true;
+    }
 
     fn print_state(self: *Computer) !void {
-        if (zeys.isPressed(zeys.VK.VK_LEFT)) {
-            self.r, _ = @subWithOverflow(self.r, 1);
-        } else if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
-            self.r, _ = @addWithOverflow(self.r, 1);
-        }
-        while (zeys.isPressed(zeys.VK.VK_LEFT) or zeys.isPressed(zeys.VK.VK_RIGHT)) {}
-
         std.debug.print("\x1B[H", .{});
-        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X}\n> DECODER: {any}\n", .{
+        std.debug.print("|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> CONT: {X} || ispressed: {any} \n> DECODER: {any}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.controller.io,
+            self.isPressed,
             self.decoder.out,
         });
 
@@ -170,6 +186,8 @@ const Computer = struct {
             i += 1;
         }
         std.debug.print("  \\==========/", .{});
+
+        self.threadEnded2 = true;
     }
 
     // this emulates the motherboard
@@ -257,7 +275,19 @@ const Computer = struct {
         self.display.tick();
         self.sync(5, 0);
 
-        if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.print_state();
+        if (self.threadEnded) {
+            self.threadEnded = false;
+            const contThread: std.Thread = try std.Thread.spawn(.{}, print_controller_input, .{self});
+            _ = contThread;
+        }
+
+        if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
+            if (self.threadEnded2) {
+                const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
+                self.threadEnded2 = false;
+                _ = debugThread;
+            }
+        }
 
         Clock.p1 = false;
         Clock.p2 = false;
@@ -297,6 +327,11 @@ const Computer = struct {
         // DISPLAY INIT
         self.display = try Display.init();
 
+        // DEBUG INIT
+        self.threadEnded = true;
+        self.threadEnded2 = true;
+        self.isPressed = false;
+
         return self;
     }
 };
@@ -319,7 +354,7 @@ pub fn main() !void {
     var comp: *Computer = try Computer.init(filename);
     Clock.setTime = std.time.nanoTimestamp();
 
-    // std.debug.print("\x1B[H\x1B[2J", .{});
+    std.debug.print("\x1B[H\x1B[2J", .{});
 
     // emulate
     var count: u32 = 0;
