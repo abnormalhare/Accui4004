@@ -31,7 +31,7 @@ const Computer = struct {
     threadEnded2: bool = true,
     isPressed: bool,
 
-    step: bool,
+    step: u2,
 
     fn print_controller_input(self: *Computer) void {
         if (!self.isPressed) {
@@ -59,15 +59,27 @@ const Computer = struct {
         var buf = try gpa_alloc.alloc(u8, 0);
         defer gpa_alloc.free(buf);
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n> ACC: 0x{X:0>1}  C: {}\n> SHIFT REG: {b:0>10} | CONT: {X}, {b}\n> DECODER: {any}\n> REGS:\n  >", .{
+        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
+        });
+
+        buf = switch (self.step) {
+            else => buf,
+            2 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}\n", .{buf, self.cpu.step}),
+            3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, self.cpu.step, if (Clock.p1) "p1" else "p2"}),
+        };
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REG: {b:0>10} | CONT: [{X} {b}]->{b}\n> DECODER: {any}\n> 0 IO: {X:0>4} | 1 IO: {X:0>4}\n> REGS:\n  >", .{ buf,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.shift_reg.reg,
             self.controller.timing,
             self.controller.clock,
+            self.controller.out,
             self.decoder.out,
+            self.roms[0].io,
+            self.roms[1].io,
         });
 
         var i: u8 = 0;
@@ -173,6 +185,13 @@ const Computer = struct {
         }
     }
 
+    fn pause(self: *Computer) void {
+        while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
+        while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+
+        _ = self;
+    }
+
     fn tick(self: *Computer) !void {
         self.cpu.tick();
         self.sync_motherboard(0, 0);
@@ -201,16 +220,18 @@ const Computer = struct {
             _ = contThread;
         }
 
-        if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
+        if (((self.step == 2 and Clock.p1) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
+            try self.print_state();
+            self.pause();
+        } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
             if (self.threadEnded2) {
                 const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
                 self.threadEnded2 = false;
                 _ = debugThread;
             }
 
-            if (self.step) {
-                while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
-                while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+            if (self.step == 1) {
+                self.pause();
             }
         }
 
@@ -280,9 +301,11 @@ pub fn main() !void {
     Clock.setTime = std.time.nanoTimestamp();
 
     if (argsIterator.next()) |run| {
-        comp.step = std.mem.eql(u8, run, "step");
+        comp.step = @as(u2, @intFromBool(std.mem.eql(u8, run, "step")));
+        comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "small_step"))) * 2;
+        comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "tiny_step"))) * 3;
     } else {
-        comp.step = false;
+        comp.step = 0;
     }
 
     std.debug.print("\x1B[H\x1B[2J", .{});

@@ -10,6 +10,7 @@ pub const Intel4008 = struct {
     addr: u8,
     port: u4,
     cmrom: u1,
+    sync: u1,
 
     // latch/mpx
     addr_mpx: u8,
@@ -38,6 +39,8 @@ pub const Intel4008 = struct {
                 TIMING.A1 => self.addr_mpx = self.buffer,
                 TIMING.A2 => self.addr_mpx += (self.buffer << 4),
                 TIMING.A3 => { self.port_mpx = self.buffer; self.addr = self.addr_mpx; self.port = self.port_mpx; },
+                TIMING.X2 => if (self.cmrom) { self.src_addr_mpx = self.buffer; },
+                TIMING.X3 => if (self.cmrom) { self.src_addr_mpx += @as(u8, self.buffer) << 4; },
             }
         }
     }

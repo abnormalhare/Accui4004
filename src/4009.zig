@@ -10,6 +10,7 @@ pub const Intel4009 = struct {
     buffer: u4,
     io: u4,
     cmrom: u1,
+    sync: u1,
 
     // latches
     data_in_buf: u8,
