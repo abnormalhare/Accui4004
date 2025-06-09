@@ -36,7 +36,7 @@ Jump Subroutine. Moves all of stack up one and sets the program counter to `AA`.
 ### 0x6X - `INC RR`
 Increment. Increases the register `RR` by 1.
 ### 0x7X - `ISZ RR A` (2-byte)
-Increment Conditional. Jumps to address `A` if register `R` is not zero. Otherwise, continues. Note: If `ISZ` is stored on the last byte of the current ROM chip, the address will be on the *next* ROM chip as opposed to the current one.
+Increment Conditional. Jumps to address `A` if register `RR` is not zero. Otherwise, continues. Note: If `ISZ` is stored on the last byte of the current ROM chip, the address will be on the *next* ROM chip as opposed to the current one.
 ### 0x8X - `ADD RR`
 Add. Adds register `RR` to the accumulator with carry.
 ### 0x9X - `SUB RR`
@@ -86,12 +86,12 @@ All instructions in this section influence the accumulator internally (aside fro
 0xFC - `KBP` | Keyboard Process. If there is only one bit in the accumulator enabled, it sets the accumulator to the position of the bit from lowest to highest (e.g. 0b0100 -> 3, 0b1000 -> 4). Otherwise sets accumulator to 15 to signal an error.
 0xFD - `DCL` | Designate Command Line. The low 3 bits are used to determine which bank to use for CM-RAM signalling. This allows for 8 different sets of 4 RAM carts to be used. Those signals are:  
 0b000 -> CM-RAM 0  
-0b001 -> CM-RAM 1
+0b001 -> CM-RAM 1  
 0b010 -> CM-RAM 2  
 0b011 -> CM-RAM 1 & 2  
 0b100 -> CM-RAM 3  
 0b101 -> CM-RAM 1 & 3
 0b110 -> CM-RAM 2 & 3
-0b111 -> CM-RAM 1, 2, & 3
+0b111 -> CM-RAM 1, 2, & 3  
 
 [Prev](2_Intel-4002.md) | [Next](6_File-Format.md)

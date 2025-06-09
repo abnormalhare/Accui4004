@@ -12,12 +12,12 @@ const conditional = struct {
     isTest: bool,
 };
 
-// NOP
+/// NOP
 fn OP_0x(self: *Intel4004) void {
     _ = self;
 }
 
-// JCN
+/// JCN
 fn OP_1x(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
@@ -80,6 +80,7 @@ fn OP_SRC(self: *Intel4004, reg: u4) void {
     }
 }
 
+/// FIM (even), SRC (odd)
 fn OP_2x(self: *Intel4004) void {
     const amnt: u4 = if (self.prev_instr != 0) @truncate((self.prev_instr >> 1) << 1) else @truncate((self.instr >> 1) << 1);
     if ((self.prev_instr != 0 and self.prev_instr % 2 == 0) or self.instr % 2 == 0) {
@@ -111,6 +112,7 @@ fn OP_JIN(self: *Intel4004, reg: u4) void {
     self.stack[0] = (pc & 0xF00) + (@as(u12, self.reg[reg]) << 4) + @as(u12, self.reg[reg + 1]);
 }
 
+/// FIN (even), JIN (odd)
 fn OP_3x(self: *Intel4004) void {
     const amnt: u4 = if (self.prev_instr != 0) @truncate((self.prev_instr >> 1) << 1) else @truncate((self.instr >> 1) << 1);
     if ((self.prev_instr != 0 and self.prev_instr % 2 == 0) or self.instr % 2 == 0) {
@@ -232,16 +234,22 @@ fn OP_Cx(self: *Intel4004) void {
 fn OP_Dx(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
-    self.acc = @truncate(self.instr & 7);
+    self.acc = @truncate(self.instr & 0xF);
 }
 
+/// Write/Read IO
 fn OP_Ex(self: *Intel4004) void {
     switch (self.step) {
+        else => {},
         TIMING.X2 => self.buffer = self.acc,
         TIMING.X3 => switch (self.instr & 0x0F) {
+            // WR(M,R,0,1,2,3), WMP, WPM
+            else => {},
+            // RD(M,R,0,1,2,3)
             9...10, 12...15 => {
                 self.acc = self.buffer;
             },
+            // SBM
             8 => {
                 var c: u1 = 0;
                 self.acc, c = @subWithOverflow(self.acc, self.buffer);
@@ -249,14 +257,13 @@ fn OP_Ex(self: *Intel4004) void {
                     self.carry = false;
                 }
             },
-            11 => {
+            // ADM
+            0xB => {
                 var c: u1 = 0;
                 self.acc, c = @addWithOverflow(self.acc, self.buffer);
                 self.carry = c == 1;
             },
-            else => {},
         },
-        else => {},
     }
 }
 

@@ -4,20 +4,37 @@ const zeys = @import("zeys");
 
 // this is a theoretical external device! there is no equivelant to this in real life!
 pub const Controller = struct {
-    io: u4,
+    signal: u1,
+    out: u1,
+    clock: u1,
+    timing: u4,
 
     pub fn init() !*Controller {
         const c: *Controller = try alloc.create(Controller);
 
-        c.io = 0;
+        c.signal = 0;
+        c.out = 0;
+        c.timing = 0;
 
         return c;
     }
 
     pub fn tick(self: *Controller) void {
-        if (zeys.isPressed(zeys.VK.VK_1)) self.io |= 0x1 else self.io &= 0xE;
-        if (zeys.isPressed(zeys.VK.VK_2)) self.io |= 0x2 else self.io &= 0xD;
-        if (zeys.isPressed(zeys.VK.VK_3)) self.io |= 0x4 else self.io &= 0xB;
-        if (zeys.isPressed(zeys.VK.VK_4)) self.io |= 0x8 else self.io &= 0x7;
+        if ((self.timing % 2 == 0 and self.signal == 1) or (self.timing % 2 == 1 and self.signal == 0)) {
+            self.timing, _ = @addWithOverflow(self.timing, 1);
+        }
+
+        self.clock = @truncate(self.timing % 2);
+        switch (self.timing) {
+            else => {},
+            1 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_W)),
+            3 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_A)),
+            5 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_S)),
+            7 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_D)),
+            9 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_E)),
+            11 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_Q)),
+            13 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_R)),
+            15 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SHIFT)),
+        }
     }
 };

@@ -1,7 +1,7 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
 
-const Clock = @import("clock.zig");
+const Clock = @import("4801.zig");
 const TIMING = @import("enum.zig").TIMING;
 const incStep = @import("enum.zig").incStep;
 

@@ -1,7 +1,7 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
 
-const Clock = @import("clock.zig");
+const Clock = @import("4801.zig");
 const TIMING = @import("enum.zig").TIMING;
 const incStep = @import("enum.zig").incStep;
 
@@ -34,7 +34,7 @@ pub const Intel4001 = struct {
 
     fn interpret(self: *Intel4001) void {
         if (!self.is_io_chip) {
-            self.is_io_chip = self.chip_num == self.buffer;
+            self.is_io_chip = (self.chip_num == self.buffer);
             return;
         }
 
@@ -61,26 +61,18 @@ pub const Intel4001 = struct {
 
         if (Clock.p1) {
             switch (self.step) {
+                else => {},
                 TIMING.M1 => self.getData(0),
                 TIMING.M2 => self.getData(1),
-                TIMING.X2 => {
-                    if (self.is_io_chip) {
-                        self.interpret();
-                    }
-                },
-                else => {},
+                TIMING.X2 => if (self.is_io_chip) self.interpret(),
             }
         } else if (Clock.p2) {
             switch (self.step) {
+                else => {},
                 TIMING.A1 => self.checkROM(self.buffer),
                 TIMING.A2 => self.address = @as(u8, self.buffer) << 4,
                 TIMING.A3 => self.address += @as(u8, self.buffer) << 0,
-                TIMING.X2 => {
-                    if (self.cm == 1 or self.is_io_chip) {
-                        self.interpret();
-                    }
-                },
-                else => {},
+                TIMING.X2 => if (self.cm == 1 or self.is_io_chip) self.interpret(),
             }
             incStep(&self.step);
         }
@@ -103,6 +95,7 @@ pub const Intel4001 = struct {
         self.cm = 0;
         self.address = 0;
         self.step = TIMING.A1;
+        self.io = 0;
     }
     fn clear(self: *Intel4001) void {
         self.io = 0;

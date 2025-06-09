@@ -1,7 +1,7 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
 
-const Clock = @import("clock.zig");
+const Clock = @import("4801.zig");
 const TIMING = @import("enum.zig").TIMING;
 const incStep = @import("enum.zig").incStep;
 const op_list = @import("opcodes.zig").op_list;
@@ -31,7 +31,6 @@ pub const Intel4004 = struct {
     }
 
     fn interpret(self: *Intel4004) void {
-        // std.debug.print("INSTRUCTION: 0x{X}\n", .{self.instr});
         if (self.prev_instr != 0) {
             op_list[@divFloor(self.prev_instr, 0x10)](self);
         } else {
