@@ -1,5 +1,6 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
+const zeys = @import("zeys");
 
 const Clock = @import("4801.zig");
 const TIMING = @import("enum.zig").TIMING;
@@ -13,6 +14,7 @@ pub const Intel4001 = struct {
 
     buffer: u4,
     io: u4,
+    exec: u4,
     cl: bool,
     sync: u1,
     cm: u1,
@@ -35,12 +37,9 @@ pub const Intel4001 = struct {
     fn interpret(self: *Intel4001) void {
         self.is_io_chip = false;
 
-        const inst2 = self.rom[@as(u32, self.address) * 2 + 1];
-        if (inst2 == 0x2 and Clock.p2) {
+        if (self.exec == 0x2) {
             self.io = self.buffer;
-        }
-
-        if (inst2 == 0xA and Clock.p1) {
+        } else if (self.exec == 0xA) {
             self.buffer = self.io;
         }
     }
@@ -67,6 +66,7 @@ pub const Intel4001 = struct {
                 TIMING.A1 => self.checkROM(self.buffer),
                 TIMING.A2 => self.address = @as(u8, self.buffer) << 4,
                 TIMING.A3 => self.address += @as(u8, self.buffer) << 0,
+                TIMING.M2 => self.setExec(@truncate(self.buffer)),
                 TIMING.X2 => if (self.cm == 1) self.checkIO(self.buffer),
             }
             incStep(&self.step);
@@ -79,6 +79,10 @@ pub const Intel4001 = struct {
 
     fn checkIO(self: *Intel4001, num: u4) void {
         self.is_io_chip = (self.chip_num == num);
+    }
+
+    fn setExec(self: *Intel4001, num: u4) void {
+        self.exec = num;
     }
 
     fn getData(self: *Intel4001, offset: u8) void {

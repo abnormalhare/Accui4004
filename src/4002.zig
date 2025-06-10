@@ -115,6 +115,6 @@ pub const Intel4002 = struct {
         self.sync = 0;
         self.cm = 0;
         self.instr = 0;
-        self.step = TIMING.A1;
+        self.step = TIMING.X3;
     }
 };

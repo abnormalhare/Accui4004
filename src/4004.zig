@@ -86,11 +86,10 @@ pub const Intel4004 = struct {
             }
         } else if (Clock.p2) {
             switch (self.step) {
-                TIMING.M1 => self.instr = @as(u8, self.buffer) << 4,
+                TIMING.M1 => self.instr =  @as(u8, self.buffer) << 4,
                 TIMING.M2 => self.instr += @as(u8, self.buffer) << 0,
                 else => {},
             }
-            // std.debug.print("CPU step: {any}\n", .{self.step});
             incStep(&self.step);
         }
     }

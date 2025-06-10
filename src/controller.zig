@@ -33,7 +33,7 @@ pub const Controller = struct {
             7 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_D)),
             9 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_E)),
             11 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_Q)),
-            13 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_R)),
+            13 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SPACE)),
             15 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SHIFT)),
         }
     }

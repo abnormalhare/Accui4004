@@ -78,6 +78,8 @@ fn OP_SRC(self: *Intel4004, reg: u4) void {
         TIMING.X3 => self.buffer = self.reg[reg + 1],
         else => {},
     }
+
+    self.prev_instr = 0;
 }
 
 /// FIM (even), SRC (odd)

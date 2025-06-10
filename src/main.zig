@@ -64,20 +64,26 @@ const Computer = struct {
             self.cpu.stack[0],
         });
 
+        var time = @intFromEnum(self.cpu.step);
+        if (Clock.p2) time, _ = @subWithOverflow(time, 1);
         buf = switch (self.step) {
             else => buf,
-            2 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}\n", .{buf, self.cpu.step}),
-            3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, self.cpu.step, if (Clock.p1) "p1" else "p2"}),
+            2 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}\n", .{buf, @as(TIMING, @enumFromInt(time))}),
+            3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, @as(TIMING, @enumFromInt(time)), if (Clock.p1) "p1" else "p2"}),
         };
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REG: {b:0>10} | CONT: [{X} {b}]->{b}\n> DECODER: {any}\n> 0 IO: {X:0>4} | 1 IO: {X:0>4}\n> REGS:\n  >", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REG: {b:0>10} | CONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
-            self.shift_reg.reg,
+            self.shift_reg.buffer,
             self.controller.timing,
             self.controller.clock,
             self.controller.out,
             self.decoder.out,
+            self.cpu.cm,
+            self.cpu.cmram,
+        });
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4}\n> REGS:\n >", .{ buf,
             self.roms[0].io,
             self.roms[1].io,
         });
@@ -86,9 +92,9 @@ const Computer = struct {
         while (i < 16) {
             buf = try std.fmt.allocPrint(gpa_alloc, "{s} 0x{X:0>1}", .{buf, self.cpu.reg[i]});
             if ((i % 4) == 3 and i != 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n  >", .{buf});
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n >", .{buf});
             } else if (i == 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n RAM {X}: \n  > ", .{buf, self.r});
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n> RAM {X}: \n > ", .{buf, self.r});
             }
             i += 1;
         }
@@ -102,9 +108,9 @@ const Computer = struct {
             });
 
             if (i % 4 == 3 and i != 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n  > ", .{buf});
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n > ", .{buf});
             } else if (i == 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n\n  > ", .{buf});
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n\n > ", .{buf});
             }
 
             i += 1;
@@ -125,7 +131,7 @@ const Computer = struct {
     }
 
     fn sync_motherboard(self: *Computer, t: u3, num: u4) void {
-        var bus: u4 = 0;
+        var bus: u4 = undefined;
         const cmrom: u1 = self.cpu.cm;
 
         if (t == 0) { // cpu
@@ -145,7 +151,7 @@ const Computer = struct {
             self.shift_reg.clock |= self.controller.clock;
             self.shift_reg.data_in = self.controller.out;
         } else if (t == 5) { // shift reg
-            self.roms[1].io = @truncate(self.shift_reg.buffer >> 7);
+            self.roms[1].io = @truncate(self.shift_reg.buffer);
         }
 
         // CPU
@@ -220,7 +226,7 @@ const Computer = struct {
             _ = contThread;
         }
 
-        if (((self.step == 2 and Clock.p1) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
+        if (((self.step == 2 and Clock.p2) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
             try self.print_state();
             self.pause();
         } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
