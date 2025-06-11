@@ -99,7 +99,7 @@ All instructions in this section influence the accumulator internally (aside fro
 0b110 -> CM-RAM 2 & 3
 0b111 -> CM-RAM 1, 2, & 3  
 ## Writing for the Assembler
-When writing for the assembler, all numbers are assumbed to be hexadecimal. This includes registers. For example, if you would like to load in the 12th register to the accumulator, you would write `LD C`  
+When writing for the assembler (located in assembler/), all numbers are assumbed to be hexadecimal. This includes registers. For example, if you would like to load in the 12th register to the accumulator, you would write `LD C`  
 Even though all values are automatically considered, hexadecimal, `$C`, `#$C`, and `0xC` are supported as well.  
 Jumping to certain addresses in the assembler is admittedly confusing because I am dumb. When jumping to an address, say, running `JUN 020`, you can write `020:` to place code there. As long as this is at or greater than the program size up to this point, there is no issue, but if it *isn't*, the assembler will error.
 
