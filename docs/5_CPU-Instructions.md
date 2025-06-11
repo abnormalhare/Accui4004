@@ -1,5 +1,6 @@
 # CPU Instructions
-This will get you acquainted with all the commands that are able to be run by the Intel 4004. All 2-byte commands are 2-cycle as well. All data sent happens on timings X2 and X3.
+This will get you acquainted with all the commands that are able to be run by the Intel 4004. All 2-byte commands are 2-cycle as well, aside from 2O. All data sent happens on timings X2 and X3.
+This document will also help with writing programs for the disassembler
 ## Legend
 `X` - any number  
 `O` - any odd number  
@@ -9,6 +10,7 @@ This will get you acquainted with all the commands that are able to be run by th
 `A` - address (8-bit)  
 `AA` - address (12-bit)  
 `R` - register pair (3-bit) (0: [reg0][reg1]) (anything with `R` has the last nibble `RRR0/RRR1`)  
+ - *note: when writing for the assembler, this number is 0-7, not 0-14*  
 `RR` - register (4-bit)  
 `D` - data (4-bit)  
 `DD` - data (8-bit)
@@ -23,12 +25,15 @@ Bit 1: Jumps if the accumulator is 0
 Bit 2: Jumps if the carry is 1
 Bit 3: Jumps if TEST pin is 0
 If the condition succeeds, the program counter's mid and lower nibbles are set to `A`. Note: If `JCN` is stored on the last byte of the current ROM chip, the address will be on the *next* ROM chip as opposed to the current one.
+To use these in the assembler: ! is bit 0, A is bit 1, C is bit 2, and T is bit 3. Any order is allowed, but this order is preferable. For example, to check if the carry is 0, write `JCN !C [A]`. To use all bits, you would write `JCN !ACT [A]`.
 ### 0x2V - `FIM R DD` (2-byte)
 Fetch Immediate. Sets register pair `R` to `DD`, typically used for commands that use register pairs to index ROM.
 ### 0x2O - `SRC R`
 Send Register Control. Sets CM-ROM pin and a CM-RAM pin, and sends register pair `R` to specify which ROM/RAM chip to send the command to.
 ### 0x3V - `FIN R` (2-cycle)
 Fetch Indirect. On the next instruction cycle, the high byte of the stack, as well as the register pair `0` is sent to the ROM. That data is stored in register pair `R`. Note: If `FIN` is stored on the last byte of the current ROM chip, data will be read from the *next* ROM chip as opposed to the current one. This is useful for using an entire chip (aside from 0x00) as data.
+### 0x3O - `JIN R`
+Jump Indirect. Jumps to the address in the register pair `R` in the current ROM chip.
 ### 0x4X - `JUN AA` (2-byte)
 Jump Unconditionally. Sets the program counter to `AA`.
 ### 0x5X - `JMS AA` (2-byte)
@@ -93,5 +98,9 @@ All instructions in this section influence the accumulator internally (aside fro
 0b101 -> CM-RAM 1 & 3
 0b110 -> CM-RAM 2 & 3
 0b111 -> CM-RAM 1, 2, & 3  
+## Writing for the Assembler
+When writing for the assembler, all numbers are assumbed to be hexadecimal. This includes registers. For example, if you would like to load in the 12th register to the accumulator, you would write `LD C`  
+Even though all values are automatically considered, hexadecimal, `$C`, `#$C`, and `0xC` are supported as well.  
+Jumping to certain addresses in the assembler is admittedly confusing because I am dumb. When jumping to an address, say, running `JUN 020`, you can write `020:` to place code there. As long as this is at or greater than the program size up to this point, there is no issue, but if it *isn't*, the assembler will error.
 
 [Prev](2_Intel-4002.md) | [Next](6_File-Format.md)

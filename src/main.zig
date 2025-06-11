@@ -231,8 +231,8 @@ const Computer = struct {
             self.pause();
         } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
             if (self.threadEnded2) {
-                const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
                 self.threadEnded2 = false;
+                const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
                 _ = debugThread;
             }
 
