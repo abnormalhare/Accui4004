@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -29,10 +30,18 @@ pub fn build(b: *std.Build) void {
     // running `zig build`).
     b.installArtifact(lib);
 
-    const zeys = b.dependency("Zeys", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    var zeys: *std.Build.Dependency = undefined;
+    var mzeys: *std.Build.Module = undefined;
+    if (builtin.target.os.tag == .windows) {
+        zeys = b.dependency("Zeys", .{
+            .target = target,
+            .optimize = optimize,
+        });
+    } else {
+        mzeys = b.addModule("zeys", .{
+            .root_source_file = b.path("src/zeys.zig")
+        });
+    }
 
     const exe = b.addExecutable(.{
         .name = "EMU_Intel_4004",
@@ -42,7 +51,12 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibC();
-    exe.root_module.addImport("zeys", zeys.module("zeys"));
+
+    if (builtin.target.os.tag == .windows) {
+        exe.root_module.addImport("zeys", zeys.module("zeys"));
+    } else {
+        exe.root_module.addImport("zeys", mzeys);
+    }
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

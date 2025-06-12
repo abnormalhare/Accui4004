@@ -422,8 +422,12 @@ pub fn main() !void {
     }
 
     std.debug.print("\x1B[H\x1B[2J", .{});
-    comp.tty = try std.fs.cwd().openFile("/dev/tty", .{ .mode = .read_write });
-    defer comp.tty.close();
+
+    
+    if (builtin.target.os.tag != .windows) {
+        comp.tty = try std.fs.cwd().openFile("/dev/tty", .{ .mode = .read_write });
+        defer comp.tty.close();
+    }
 
     // emulate
     var count: u32 = 0;
