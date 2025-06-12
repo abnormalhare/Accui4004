@@ -1,6 +1,7 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
 const zeys = @import("zeys");
+const builtin = @import("builtin");
 
 // this is a theoretical external device! there is no equivelant to this in real life!
 pub const Controller = struct {
@@ -25,16 +26,18 @@ pub const Controller = struct {
         }
 
         self.clock = @truncate(self.timing % 2);
-        switch (self.timing) {
-            else => {},
-            1 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_W)),
-            3 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_A)),
-            5 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_S)),
-            7 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_D)),
-            9 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_E)),
-            11 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_Q)),
-            13 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SPACE)),
-            15 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SHIFT)),
+        if (builtin.target.os.tag == .windows) {
+            switch (self.timing) {
+                else => {},
+                1 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_W)),
+                3 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_A)),
+                5 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_S)),
+                7 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_D)),
+                9 =>  self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_E)),
+                11 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_Q)),
+                13 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SPACE)),
+                15 => self.out = @intFromBool(zeys.isPressed(zeys.VK.VK_SHIFT)),
+            }
         }
     }
 };
