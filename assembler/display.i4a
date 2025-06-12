@@ -12,194 +12,194 @@ FIM 0 20
 FIM 1 41
 
 004:
-JMS 050 ; get controller input
-JMS 0B0 ; determine movement
-JMS 00C ; draw player to screen
+    JMS 050 ; get controller input
+    JMS 0B0 ; determine movement
+    JMS 00C ; draw player to screen
 
-JUN 004
+    JUN 004
 
 ; display code
 
-00C:
-
 ; clear ROM 2 Shift Reg
-FIM 5 97 ; display counters (16 - 8 (scanlines) + 1 (idk why) = 9 for Y)
-;        ; 16 - 8 (pixels) + 1 (x position print) - 2 (shift 2 bits too large) = 7 for X
-FIM 6 20 ; set to ROM 2
-FIM 7 86 ; clock shift reg only, 16-6 = 10 times
-JMS 070  ; shift reg shifter
-LD 2     ; load Y position
+00C:
+    FIM 5 97 ; display counters (16 - 8 (scanlines) + 1 (idk why) = 9 for Y)
+             ; 16 - 8 (pixels) + 1 (x position print) - 2 (shift 2 bits too large) = 7 for X
+    FIM 6 20 ; set to ROM 2
+    FIM 7 86 ; clock shift reg only, 16-6 = 10 times
+    JMS 070  ; shift reg shifter
+
+    LD 2     ; load Y position
 
 ; get Y position on display
 015:     ; do {
-JCN A 1F ;
-DAC      ; decrement Y
-INC A    ; increment Y counter
-JMS 080  ; draw nothing to screen
-XCH F    ; replace acc
-JUN 015  ; } while accumulator != 0
+    JCN A 1F ;
+    DAC      ; decrement Y
+    INC A    ; increment Y counter
+    JMS 080  ; draw nothing to screen
+    XCH F    ; replace acc
+    JUN 015  ; } while accumulator != 0
 
 01F:
-LD 3     ; load X position
+    LD 3     ; load X position
 
 ; get X position on display
 020:     ; do {
-JCN A 28 ;
-DAC      ; decrement X
-INC B    ; increment X counter
-JUN 020  ; } while accumlator != 0
+    JCN A 28 ;
+    DAC      ; decrement X
+    INC B    ; increment X counter
+    JUN 020  ; } while accumlator != 0
 
 ; send X position
 028:
-LDM E    ; clock & enable & data in
-SRC 0    ; send to ROM 2 shift reg
-WRR      ;
-LDM 4    ; enable
-SRC 0    ; send to ROM 2 shift reg
-WRR      ;
+    LDM E    ; clock & enable & data in
+    SRC 0    ; send to ROM 2 shift reg
+    WRR      ;
+    LDM 4    ; enable
+    SRC 0    ; send to ROM 2 shift reg
+    WRR      ;
 
 ; shift over so that X is in the right place using X counter
 02E:
-LDM C    ; clock & enable
-SRC 0    ; send to ROM 2 shift reg
-WRR
-LDM 4    ; enable
-SRC 0    ; send to ROM 2 shift reg
-WRR
-ISZ B 2E ; after printing enough 0's, return from print
+    LDM C    ; clock & enable
+    SRC 0    ; send to ROM 2 shift reg
+    WRR
+    LDM 4    ; enable
+    SRC 0    ; send to ROM 2 shift reg
+    WRR
+    ISZ B 2E ; after printing enough 0's, return from print
 
-; signal display
-LDM 5    ; signal & enable
-SRC 0
-WRR
+    ; signal display
+    LDM 5    ; signal & enable
+    SRC 0
+    WRR
 
-; reset shift
-FIM 6 20
-FIM 7 88
-JMS 070
+    ; reset shift
+    FIM 6 20
+    FIM 7 88
+    JMS 070
 
 ; reset scanline using Y counter
 040:
-LDM 4    ; enable
-SRC 0
-WRR
-LDM 5    ; signal & enable
-SRC 0
-WRR
-ISZ A 040 ; if Y counter isnt complete, jump back
+    LDM 4    ; enable
+    SRC 0
+    WRR
+    LDM 5    ; signal & enable
+    SRC 0
+    WRR
+    ISZ A 040 ; if Y counter isnt complete, jump back
 
-; return
-LDM 4    ; enable
-SRC 0
-WRR
-BBL 0
+    ; return
+    LDM 4    ; enable
+    SRC 0
+    WRR
+    BBL 0
 
 ; Controller code (mostly copy-pasted)
 
 050:
-FIM 6 00 ; Shift Reg (ROM 0) Port
-FIM 7 18 ; E: what to output, F: inverted counter
-JMS 070  ; call ShiftReg(in, inv_count)
-FIM 7 8E
-JMS 070
+    FIM 6 00 ; Shift Reg (ROM 0) Port
+    FIM 7 18 ; E: what to output, F: inverted counter
+    JMS 070  ; call ShiftReg(in, inv_count)
+    FIM 7 8E
+    JMS 070
 
-FIM 6 10 ; Controller Output port
-JMS 07C
+    FIM 6 10 ; Controller Output port
+    JMS 07C
 
-FIM 6 00
-FIM 7 8C
-JMS 070
-BBL 0
+    FIM 6 00
+    FIM 7 8C
+    JMS 070
+    BBL 0
 
 ; Shift Reg code
 
 070:
-LD E
-SRC 6
-WRR
-LDM 4
-SRC 6
-WRR
-ISZ F 70
-BBL 0
+    LD E
+    SRC 6
+    WRR
+    LDM 4
+    SRC 6
+    WRR
+    ISZ F 70
+    BBL 0
 
 07C:
-SRC 6
-RDR
-XCH 4
-BBL 0
+    SRC 6
+    RDR
+    XCH 4
+    BBL 0
 
 080:
-XCH F
-LDM 1
-SRC 0
-WRR
-LDM 0
-SRC 0
-WRR
-BBL 0
+    XCH F
+    LDM 1
+    SRC 0
+    WRR
+    LDM 0
+    SRC 0
+    WRR
+    BBL 0
 
 ; player movement
 ; new chip
 
 B0:
-FIM 6 12   ; powers of 2, for bitwise anding, basically
-FIM 7 48   ;
+    FIM 6 12   ; powers of 2, for bitwise anding, basically
+    FIM 7 48   ;
 
-LD 4       ; get controller input
-SUB D      ; check for left input
-JCN !A C0  ;
-XCH 3      ; dec X
-JCN !A BE  ; if result X is F
-LDM 7      ; set it to 7
-JUN 0BF
+    LD 4       ; get controller input
+    SUB D      ; check for left input
+    JCN !A C0  ;
+    XCH 3      ; dec X
+    JCN !A BE  ; if result X is F
+    LDM 7      ; set it to 7
+    JUN 0BF
 
 BE:
-DAC
+    DAC
 
 BF:
-XCH 3
+    XCH 3
 
 C0:
-LD 4
-SUB E      ; check for if down input
-JCN !A D0
-INC 2      ; inc Y
-LD 2
-SUB F      ; if Y is 8
-JCN !A D0  ;
-LDM 0      ; set it to 0
-XCH 2
-JUN D0
+    LD 4
+    SUB E      ; check for if down input
+    JCN !A D0
+    INC 2      ; inc Y
+    LD 2
+    SUB F      ; if Y is 8
+    JCN !A D0  ;
+    LDM 0      ; set it to 0
+    XCH 2
+    JUN D0
 
 D0:
-LD 4
-SUB F      ; check for if right input
-JCN !A E0
-INC 3      ; inc X
-LD 3
-SUB F      ; if X is 8
-JCN !A E0  ;
-LDM 0      ; set it to 0
-XCH 3
-JUN E0
+    LD 4
+    SUB F      ; check for if right input
+    JCN !A E0
+    INC 3      ; inc X
+    LD 3
+    SUB F      ; if X is 8
+    JCN !A E0  ;
+    LDM 0      ; set it to 0
+    XCH 3
+    JUN E0
 
 E0:
-LD 4
-SUB C      ; check for if up input
-JCN !A F0
-XCH 2      ; dec Y
-JCN !A EE  ; if Y is F
-LDM 7      ; set it to 7
-JUN 0EF
+    LD 4
+    SUB C      ; check for if up input
+    JCN !A F0
+    XCH 2      ; dec Y
+    JCN !A EE  ; if Y is F
+    LDM 7      ; set it to 7
+    JUN 0EF
 
 EE:
-DAC
+    DAC
 
 EF:
-XCH 2
+    XCH 2
 
 F0:
-BBL 0
+    BBL 0
 
 100: ; padding (no reason, just looks better)

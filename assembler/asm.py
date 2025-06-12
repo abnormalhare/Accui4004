@@ -35,11 +35,16 @@ def interpret(file, line: str, linenum: int) -> bytes:
     instruction: str = line[0].upper()
     ret: bytes = b''
 
-    if instruction == "":
-        return b''
-    elif instruction == "NOP":
+    index = 1
+    while instruction == "":
+        if len(line) <= index:
+            return b''
+        instruction = line[index]
+        index += 1
+    
+    if instruction == "NOP":
         if len(line) > 1:
-            cnt: int = get_hex(line[1], linenum)
+            cnt: int = get_hex(line[index], linenum)
             if cnt == -1: return -1
 
             for i in range(cnt):
@@ -48,8 +53,8 @@ def interpret(file, line: str, linenum: int) -> bytes:
             ret += write(file, 0)
     elif instruction == "JCN":
         w: int = 0x10
-        cond: str = line[1]
-        addr: int = get_hex(line[2], linenum)
+        cond: str = line[index]
+        addr: int = get_hex(line[index + 1], linenum)
         if addr == -1: return -1
 
         if '!' in cond: w += 8
@@ -62,49 +67,49 @@ def interpret(file, line: str, linenum: int) -> bytes:
 
         ret += write(file, w, addr)
     elif instruction == "FIM":
-        reg = 0x20 + get_hex(line[1], linenum) * 2
-        data: int = get_hex(line[2], linenum)
+        reg = 0x20 + get_hex(line[index], linenum) * 2
+        data: int = get_hex(line[index + 1], linenum)
         if data == -1: return -1
 
         ret += write(file, reg, data)
     elif instruction == "SRC":
-        val: int = 0x20 + get_hex(line[1], linenum) * 2 + 1
+        val: int = 0x20 + get_hex(line[index], linenum) * 2 + 1
         ret += write(file, val)
     elif instruction == "FIN":
-        val: int = 0x30 + get_hex(line[1], linenum) * 2
+        val: int = 0x30 + get_hex(line[index], linenum) * 2
         ret += write(file, val)
     elif instruction == "JIN":
-        val: int = 0x30 + get_hex(line[1], linenum) * 2 + 1
+        val: int = 0x30 + get_hex(line[index], linenum) * 2 + 1
 
         ret += write(file, byte1, byte2)
     elif instruction == "JUN":
-        addr: int = get_hex(line[1], linenum)
+        addr: int = get_hex(line[index], linenum)
         byte1: int = 0x40 + (addr >> 8)
         byte2: int = addr & 0xFF
         ret += write(file, byte1, byte2)
     elif instruction == "JMS":
-        addr: int = get_hex(line[1], linenum)
+        addr: int = get_hex(line[index], linenum)
         byte1: int = 0x50 + (addr >> 8)
         byte2: int = addr & 0xFF
         ret += write(file, byte1, byte2)
     elif instruction == "INC":
-        ret += write(file, 0x60 + get_hex(line[1], linenum))
+        ret += write(file, 0x60 + get_hex(line[index], linenum))
     elif instruction == "ISZ":
-        reg: int = 0x70 + get_hex(line[1], linenum)
-        addr: int = get_hex(line[2], linenum)
+        reg: int = 0x70 + get_hex(line[index], linenum)
+        addr: int = get_hex(line[index + 1], linenum)
         ret += write(file, reg, addr)
     elif instruction == "ADD":
-        ret += write(file, 0x80 + get_hex(line[1], linenum))
+        ret += write(file, 0x80 + get_hex(line[index], linenum))
     elif instruction == "SUB":
-        ret += write(file, 0x90 + get_hex(line[1], linenum))
+        ret += write(file, 0x90 + get_hex(line[index], linenum))
     elif instruction == "LD":
-        ret += write(file, 0xA0 + get_hex(line[1], linenum))
+        ret += write(file, 0xA0 + get_hex(line[index], linenum))
     elif instruction == "XCH":
-        ret += write(file, 0xB0 + get_hex(line[1], linenum))
+        ret += write(file, 0xB0 + get_hex(line[index], linenum))
     elif instruction == "BBL":
-        ret += write(file, 0xC0 + get_hex(line[1], linenum))
+        ret += write(file, 0xC0 + get_hex(line[index], linenum))
     elif instruction == "LDM":
-        ret += write(file, 0xD0 + get_hex(line[1], linenum))
+        ret += write(file, 0xD0 + get_hex(line[index], linenum))
     elif instruction == "WRM": ret += write(file, 0xE0)
     elif instruction == "WMP": ret += write(file, 0xE1)
     elif instruction == "WRR": ret += write(file, 0xE2)
