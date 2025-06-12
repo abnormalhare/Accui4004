@@ -118,7 +118,7 @@ const Computer = struct {
         };
 
         if (builtin.target.os.tag != .windows) {
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}  [ INPUT: {any} ]  ", .{buf, self.linux_key_buffer});
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}> INPUT: {any}\n", .{buf, self.linux_key_buffer});
         }
 
         buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
