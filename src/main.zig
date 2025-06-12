@@ -42,23 +42,7 @@ const Computer = struct {
     fn print_controller_input(self: *Computer) void {
         if (builtin.target.os.tag == .windows) {
             self.print_controller_input_windows();
-        } else {
-            self.print_controller_input_linux();
         }
-    }
-    
-    fn print_controller_input_linux(self: *Computer) void {
-        // No idea
-        var fds: [1]std.os.linux.pollfd = undefined;
-        // No idea 2
-        fds[0] = .{
-            .fd = zeys.tty.handle,
-            .events = std.os.linux.POLL.IN,
-            .revents = undefined,
-        };
-        // Buffer to holf the user input
-        _ = std.os.linux.poll(&fds, 1, -1);
-        _ = std.os.linux.read(zeys.tty.handle, &self.linux_key_buffer, 16);
     }
 
     fn print_controller_input_windows(self: *Computer) void {
@@ -116,10 +100,6 @@ const Computer = struct {
             2 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}\n", .{buf, @as(TIMING, @enumFromInt(time))}),
             3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, @as(TIMING, @enumFromInt(time)), if (Clock.p1) "p1" else "p2"}),
         };
-
-        if (builtin.target.os.tag != .windows) {
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}> INPUT: {any}\n", .{buf, self.linux_key_buffer});
-        }
 
         buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
             self.cpu.acc,
@@ -283,10 +263,8 @@ const Computer = struct {
     }
 
     fn pause(self: *Computer) void {
-        if (builtin.target.os.tag == .windows) {
-            while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
-            while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
-        }
+        while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
+        while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
 
         _ = self;
     }
@@ -423,12 +401,6 @@ pub fn main() !void {
     }
 
     std.debug.print("\x1B[H\x1B[2J", .{});
-
-    
-    if (builtin.target.os.tag != .windows) {
-        try zeys.init();
-        defer zeys.deinit();
-    }
 
     // emulate
     var count: u32 = 0;

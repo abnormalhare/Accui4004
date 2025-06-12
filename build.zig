@@ -31,17 +31,10 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     var zeys: *std.Build.Dependency = undefined;
-    var mzeys: *std.Build.Module = undefined;
-    if (builtin.target.os.tag == .windows) {
-        zeys = b.dependency("Zeys", .{
-            .target = target,
-            .optimize = optimize,
-        });
-    } else {
-        mzeys = b.addModule("zeys", .{
-            .root_source_file = b.path("src/zeys.zig")
-        });
-    }
+    zeys = b.dependency("Zeys", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "EMU_Intel_4004",
@@ -52,11 +45,7 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    if (builtin.target.os.tag == .windows) {
-        exe.root_module.addImport("zeys", zeys.module("zeys"));
-    } else {
-        exe.root_module.addImport("zeys", mzeys);
-    }
+    exe.root_module.addImport("zeys", zeys.module("zeys"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
