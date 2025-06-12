@@ -1,32 +1,44 @@
+const std = @import("std");
 const alloc = @import("root.zig").alloc;
 
 pub const Display = struct {
-    prev_io: u4,
-    io: u4,
-    disp: [3 * 16]bool, // 6 x 8 display
-    step: u4,
+    io: u8,
+    disp: [8][8]u1, // 8 x 8 display
+    scanline: u3,
+    prev_signal: u1,
+    signal: u1,
 
     pub fn init() !*Display {
         const d = try alloc.create(Display);
 
-        d.prev_io = 0;
         d.io = 0;
-        for (&d.disp) |*pixel| {
-            pixel.* = false;
+        d.scanline = 0;
+        d.signal = 0;
+        for (&d.disp) |*scanline| {
+            for (&scanline.*) |*pixel| {
+                pixel.* = 0;
+            }
         }
 
         return d;
     }
 
     pub fn tick(self: *Display) void {
-        if ((self.prev_io & 8) == (self.io & 8)) return;
+        if (self.signal == 0 or self.prev_signal == 1) {
+            self.prev_signal = self.signal;
+            return;
+        }
 
-        self.prev_io = self.io;
-        const step: u8 = @intCast(self.step);
-        self.disp[step * 3 + 0] = (self.io & 4) == 1;
-        self.disp[step * 3 + 1] = (self.io & 2) == 2;
-        self.disp[step * 3 + 2] = (self.io & 1) == 1;
+        self.prev_signal = self.signal;
 
-        self.step, _ = @addWithOverflow(self.step, 1);
+        var i: u16 = 0;
+        var temp_io: u8 = self.io;
+        while (i < 8) {
+            self.disp[self.scanline][i] = @truncate(temp_io);
+            temp_io >>= 1;
+            i += 1;
+        }
+
+        self.scanline, _ = @addWithOverflow(self.scanline, 1);
     }
 };

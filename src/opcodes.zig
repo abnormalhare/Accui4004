@@ -38,14 +38,14 @@ fn OP_1x(self: *Intel4004) void {
     if (!conditions.invert) {
         if ((!conditions.isAccZero or (conditions.isAccZero and self.acc == 0)) and
             (!conditions.isCarry or (conditions.isCarry and self.carry)) and
-            (!conditions.isTest or (conditions.isTest and self.testP)))
+            (!conditions.isTest or (conditions.isTest and !self.testP)))
         {
             self.stack[0] = (self.stack[0] & 0xF00) + @as(u12, jmp);
         }
     } else {
         if ((!conditions.isAccZero or (conditions.isAccZero and self.acc != 0)) and
             (!conditions.isCarry or (conditions.isCarry and !self.carry)) and
-            (!conditions.isTest or (conditions.isTest and !self.testP)))
+            (!conditions.isTest or (conditions.isTest and self.testP)))
         {
             self.stack[0] = (self.stack[0] & 0xF00) + @as(u12, jmp);
         }
@@ -273,34 +273,43 @@ fn OP_Fx(self: *Intel4004) void {
     if (self.step != TIMING.X1) return;
 
     switch (self.instr & 0x0F) {
+        // CLB
         0 => {
             self.carry = false;
             self.acc = 0;
         },
+        // CLC
         1 => self.carry = false,
+        // IAC
         2 => {
             var c: u1 = 0;
             self.acc, c = @addWithOverflow(self.acc, 1);
             self.carry = c == 1;
         },
+        // CMC
         3 => self.carry = !self.carry,
+        // CMA
         4 => self.acc = ~self.acc,
+        // RAL
         5 => {
             const c: u4 = @intFromBool(self.carry);
             self.carry = ((self.acc >> 3) & 2) == 1;
             self.acc <<= 1;
             self.acc += c;
         },
+        // RAR
         6 => {
             const c: u4 = @intFromBool(self.carry);
             self.carry = (self.acc & 2) == 1;
             self.acc >>= 1;
             self.acc += c << 3;
         },
+        // TCC
         7 => {
             self.acc = @intFromBool(self.carry);
             self.carry = false;
         },
+        // DAC
         8 => {
             var c: u1 = 0;
             self.acc, c = @subWithOverflow(self.acc, 1);
@@ -308,11 +317,14 @@ fn OP_Fx(self: *Intel4004) void {
                 self.carry = false;
             }
         },
+        // TCS
         9 => {
             self.acc = 9 + @as(u4, @intFromBool(self.carry));
             self.carry = false;
         },
+        // STC
         10 => self.carry = true,
+        // DAA
         11 => {
             if (self.carry or self.acc > 9) {
                 if (@as(u5, self.acc) + 6 >= 16) {
@@ -321,9 +333,11 @@ fn OP_Fx(self: *Intel4004) void {
                 self.acc, _ = @addWithOverflow(self.acc, 6);
             }
         },
+        // KBP
         12 => {
             if (self.acc <= 2) return else if (self.acc == 4) self.acc = 3 else if (self.acc == 8) self.acc = 4 else self.acc = 15;
         },
+        // DCL
         13 => {
             switch (self.acc & 0x7) {
                 0 => self.bank = 1,

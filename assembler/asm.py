@@ -52,10 +52,10 @@ def interpret(file, line: str, linenum: int) -> bytes:
         addr: int = get_hex(line[2], linenum)
         if addr == -1: return -1
 
-        if '!' in cond: w += 1
-        if 'A' in cond: w += 2
-        if 'C' in cond: w += 4
-        if 'T' in cond: w += 8
+        if '!' in cond: w += 8
+        if 'A' in cond: w += 4
+        if 'C' in cond: w += 2
+        if 'T' in cond: w += 1
         if cond != "" and '!' not in cond and 'A' not in cond and 'C' not in cond and 'T' not in cond:
             print(f"ERROR: invalid condition set {cond} @ {linenum}")
             return -1
@@ -135,6 +135,8 @@ def interpret(file, line: str, linenum: int) -> bytes:
     elif instruction == "DAA": ret += write(file, 0xFB)
     elif instruction == "KBP": ret += write(file, 0xFC)
     elif instruction == "DCL": ret += write(file, 0xFD)
+    elif ';' in instruction:
+        pass
     elif instruction[-1] == ":":
         val: int = get_hex(instruction[:-1], linenum)
         if prg_size > val:

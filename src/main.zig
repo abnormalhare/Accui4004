@@ -10,6 +10,7 @@ const Intel4004 = @import("4004.zig").Intel4004;
 const Intel3205 = @import("3205.zig").Intel3205;
 
 const Controller = @import("controller.zig").Controller;
+const Display = @import("display.zig").Display;
 
 const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("4801.zig");
@@ -23,15 +24,18 @@ const Computer = struct {
     cpu: *Intel4004,
     roms: [16]*Intel4001,
     rams: [32]*Intel4002,
-    shift_reg: *Intel4003,
+    shift_regs: [2]*Intel4003,
     decoder: *Intel3205,
     controller: *Controller,
+    display: *Display,
     r: u8 = 0,
     threadEnded: bool = true,
     threadEnded2: bool = true,
     isPressed: bool,
 
     step: u2,
+    print_type: u1,
+    just_flipped_print_type: bool,
 
     fn print_controller_input(self: *Computer) void {
         if (!self.isPressed) {
@@ -43,8 +47,13 @@ const Computer = struct {
                 if (self.r != 0) self.r -= 1 else self.r = 0x1F;
                 self.isPressed = true;
             }
+            if (zeys.isPressed(zeys.VK.VK_R)) {
+                self.isPressed = true;
+                self.print_type = ~self.print_type;
+                self.just_flipped_print_type = true;
+            }
         } else {
-            if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT)) {
+            if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT) and !zeys.isPressed(zeys.VK.VK_R)) {
                 self.isPressed = false;
             }
         }
@@ -53,6 +62,18 @@ const Computer = struct {
     }
 
     fn print_state(self: *Computer) !void {
+        if (self.just_flipped_print_type) {
+            self.just_flipped_print_type = false;
+            std.debug.print("\x1B[H\x1B[2J", .{});
+        }
+
+        switch (self.print_type) {
+            0 => try self.print_component_state(),
+            1 => try self.print_display_state(),
+        }
+    }
+
+    fn print_component_state(self: *Computer) !void {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         const gpa_alloc = gpa.allocator();
         
@@ -72,10 +93,11 @@ const Computer = struct {
             3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, @as(TIMING, @enumFromInt(time)), if (Clock.p1) "p1" else "p2"}),
         };
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REG: {b:0>10} | CONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
-            self.shift_reg.buffer,
+            self.shift_regs[0].buffer,
+            self.shift_regs[1].buffer,
             self.controller.timing,
             self.controller.clock,
             self.controller.out,
@@ -83,9 +105,10 @@ const Computer = struct {
             self.cpu.cm,
             self.cpu.cmram,
         });
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4}\n> REGS:\n >", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4} | 2 IO: {b:0>4}\n> REGS:\n >", .{ buf,
             self.roms[0].io,
             self.roms[1].io,
+            self.roms[2].io,
         });
 
         var i: u8 = 0;
@@ -130,6 +153,36 @@ const Computer = struct {
         self.threadEnded2 = true;
     }
 
+    fn print_display_state(self: *Computer) !void {
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const gpa_alloc = gpa.allocator();
+        
+        var buf = try gpa_alloc.alloc(u8, 0);
+        defer gpa_alloc.free(buf);
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}/--------\\\n| I-4004 |\n|--------|\n", .{buf});
+
+        for (&self.display.disp) |scanline| {
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|", .{buf});
+            for (&scanline) |pixel| {
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}{b}", .{buf, pixel});
+            }
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{buf});
+        }
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}\\--------/\n\n", .{buf});
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|| SCANLINE: {d} || SIG: {d}{d} ||\n", .{buf, self.display.scanline, self.display.prev_signal, self.display.signal});
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}  ||\n", .{buf,
+            self.cpu.instr,
+            self.cpu.stack[0],
+        });
+
+        std.debug.print("\x1B[H", .{});
+        std.debug.print("{s}", .{buf});
+
+        self.threadEnded2 = true;
+    }
+
     fn sync_motherboard(self: *Computer, t: u3, num: u4) void {
         var bus: u4 = undefined;
         const cmrom: u1 = self.cpu.cm;
@@ -141,17 +194,27 @@ const Computer = struct {
             bus = self.roms[num].buffer;
             if (num == 0) {
                 self.controller.signal = @truncate((self.roms[0].io & 1) >> 0);
-                self.shift_reg.data_in = @truncate((self.roms[0].io & 2) >> 1);
-                self.shift_reg.enable  = @truncate((self.roms[0].io & 4) >> 2);
-                self.shift_reg.clock   = @truncate((self.roms[0].io & 8) >> 3);
+                self.shift_regs[0].data_in = @truncate((self.roms[0].io & 2) >> 1);
+                self.shift_regs[0].enable  = @truncate((self.roms[0].io & 4) >> 2);
+                self.shift_regs[0].clock   = @truncate((self.roms[0].io & 8) >> 3);
+            }
+            if (num == 2) {
+                self.display.signal = @truncate((self.roms[2].io & 1) >> 0);
+                self.shift_regs[1].data_in = @truncate((self.roms[2].io & 2) >> 1);
+                self.shift_regs[1].enable  = @truncate((self.roms[2].io & 4) >> 2);
+                self.shift_regs[1].clock   = @truncate((self.roms[2].io & 8) >> 3);
             }
         } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
         } else if (t == 4) { // controller
-            self.shift_reg.clock |= self.controller.clock;
-            self.shift_reg.data_in = self.controller.out;
+            self.shift_regs[0].clock |= self.controller.clock;
+            self.shift_regs[0].data_in = self.controller.out;
         } else if (t == 5) { // shift reg
-            self.roms[1].io = @truncate(self.shift_reg.buffer);
+            if (num == 0) {
+                self.roms[1].io = @truncate(self.shift_regs[0].buffer);
+            }
+        } else if (t == 6) {
+            self.display.io = @truncate(self.shift_regs[1].buffer);
         }
 
         // CPU
@@ -217,8 +280,16 @@ const Computer = struct {
         self.controller.tick();
         self.sync_motherboard(4, 0);
 
-        self.shift_reg.tick();
+        var i: u4 = 0;
+        for (&self.shift_regs) |*sr| {
+            sr.*.tick();
+            self.sync_motherboard(1, i);
+            i += 1;
+        }
         self.sync_motherboard(5, 0);
+
+        self.display.tick();
+        self.sync_motherboard(6, 0);
 
         if (self.threadEnded) {
             self.threadEnded = false;
@@ -277,7 +348,14 @@ const Computer = struct {
         self.controller = try Controller.init();
 
         // SHIFT REG INIT
-        self.shift_reg = try Intel4003.init();
+        i = 0;
+        while (i < self.shift_regs.len) {
+            self.shift_regs[i] = try Intel4003.init();
+            i += 1;
+        }
+
+        // DISPLAY INIT
+        self.display = try Display.init();
 
         // DEBUG INIT
         self.threadEnded = true;
