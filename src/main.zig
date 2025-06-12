@@ -37,7 +37,6 @@ const Computer = struct {
     step: u2,
     print_type: u1,
     just_flipped_print_type: bool,
-    tty: std.fs.File,
 
 
     fn print_controller_input(self: *Computer) void {
@@ -53,7 +52,7 @@ const Computer = struct {
         var fds: [1]std.os.linux.pollfd = undefined;
         // No idea 2
         fds[0] = .{
-            .fd = self.tty.handle,
+            .fd = zeys.tty.handle,
             .events = std.os.linux.POLL.IN,
             .revents = undefined,
         };
@@ -61,9 +60,11 @@ const Computer = struct {
         var buffer: [16]u8 = undefined;
 
         _ = std.os.linux.poll(&fds, 1, -1);
-        _ = std.os.linux.read(self.tty.handle, &buffer, 16);
+        _ = std.os.linux.read(zeys.tty.handle, &buffer, 16);
 
-        std.debug.print("  [ INPUT: {X} ]  ", .{buffer[0]});
+        std.debug.print("  [ INPUT: {any} ]  ", .{buffer});
+
+        _ = self;
     }
 
     fn print_controller_input_windows(self: *Computer) void {
@@ -427,8 +428,8 @@ pub fn main() !void {
 
     
     if (builtin.target.os.tag != .windows) {
-        comp.tty = try std.fs.cwd().openFile("/dev/tty", .{ .mode = .read_write });
-        defer comp.tty.close();
+        zeys.init();
+        defer zeys.tty.close();
     }
 
     // emulate
