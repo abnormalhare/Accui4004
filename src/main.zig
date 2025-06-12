@@ -426,8 +426,8 @@ pub fn main() !void {
 
     
     if (builtin.target.os.tag != .windows) {
-        zeys.init();
-        defer zeys.tty.close();
+        try zeys.init();
+        defer zeys.deinit();
     }
 
     // emulate
