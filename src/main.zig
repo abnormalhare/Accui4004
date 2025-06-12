@@ -284,8 +284,10 @@ const Computer = struct {
     }
 
     fn pause(self: *Computer) void {
-        while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
-        while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+        if (builtin.target.os.tag == .windows) {
+            while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
+            while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
+        }
 
         _ = self;
     }
