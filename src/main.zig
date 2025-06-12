@@ -63,7 +63,7 @@ const Computer = struct {
         _ = std.os.linux.poll(&fds, 1, -1);
         _ = std.os.linux.read(self.tty.handle, &buffer, 16);
 
-        std.debug.print("{s}", .{buffer});
+        std.debug.print("{X}", .{buffer[0]});
     }
 
     fn print_controller_input_windows(self: *Computer) void {
