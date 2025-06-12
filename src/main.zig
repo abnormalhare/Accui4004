@@ -60,7 +60,7 @@ const Computer = struct {
         // Buffer to holf the user input
         var buffer: [16]u8 = undefined;
 
-        _ = try std.os.linux.poll(&fds, -1, 5);
+        _ = try std.os.linux.poll(&fds, 1, -1);
         _ = try std.os.linux.read(self.tty.handle, &buffer, 16);
 
         std.debug.print("{s}", .{buffer});
