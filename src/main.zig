@@ -44,11 +44,11 @@ const Computer = struct {
         if (builtin.target.os.tag == .windows) {
             self.print_controller_input_windows();
         } else {
-            try self.print_controller_input_linux() catch unreachable;
+            self.print_controller_input_linux();
         }
     }
     
-    fn print_controller_input_linux(self: *Computer) !void {
+    fn print_controller_input_linux(self: *Computer) void {
         // No idea
         var fds: [1]std.os.linux.pollfd = undefined;
         // No idea 2
@@ -60,8 +60,8 @@ const Computer = struct {
         // Buffer to holf the user input
         var buffer: [16]u8 = undefined;
 
-        _ = try std.os.linux.poll(&fds, 1, -1);
-        _ = try std.os.linux.read(self.tty.handle, &buffer, 16);
+        _ = std.os.linux.poll(&fds, 1, -1);
+        _ = std.os.linux.read(self.tty.handle, &buffer, 16);
 
         std.debug.print("{s}", .{buffer});
     }
