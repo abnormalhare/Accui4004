@@ -37,7 +37,7 @@ const Computer = struct {
     step: u2,
     print_type: u1,
     just_flipped_print_type: bool,
-
+    linux_key_buffer: [16]u8,
 
     fn print_controller_input(self: *Computer) void {
         if (builtin.target.os.tag == .windows) {
@@ -57,14 +57,8 @@ const Computer = struct {
             .revents = undefined,
         };
         // Buffer to holf the user input
-        var buffer: [16]u8 = undefined;
-
         _ = std.os.linux.poll(&fds, 1, -1);
-        _ = std.os.linux.read(zeys.tty.handle, &buffer, 16);
-
-        std.debug.print("  [ INPUT: {any} ]  ", .{buffer});
-
-        _ = self;
+        _ = std.os.linux.read(zeys.tty.handle, &self.linux_key_buffer, 16);
     }
 
     fn print_controller_input_windows(self: *Computer) void {
@@ -122,6 +116,10 @@ const Computer = struct {
             2 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}\n", .{buf, @as(TIMING, @enumFromInt(time))}),
             3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, @as(TIMING, @enumFromInt(time)), if (Clock.p1) "p1" else "p2"}),
         };
+
+        if (builtin.target.os.tag != .windows) {
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}  [ INPUT: {any} ]  ", .{buf, self.linux_key_buffer});
+        }
 
         buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
             self.cpu.acc,
