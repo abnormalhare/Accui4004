@@ -1,6 +1,7 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
 const zeys = @import("zeys");
+const builtin = @import("builtin");
 const romcopy = @import("romcopy.zig");
 
 const Intel4001 = @import("4001.zig").Intel4001;
@@ -36,8 +37,36 @@ const Computer = struct {
     step: u2,
     print_type: u1,
     just_flipped_print_type: bool,
+    tty: std.fs.File,
+
 
     fn print_controller_input(self: *Computer) void {
+        if (builtin.target.os.tag == .windows) {
+            self.print_controller_input_windows();
+        } else {
+            try self.print_controller_input_linux() catch unreachable;
+        }
+    }
+    
+    fn print_controller_input_linux(self: *Computer) !void {
+        // No idea
+        var fds: [1]std.os.linux.pollfd = undefined;
+        // No idea 2
+        fds[0] = .{
+            .fd = self.tty.handle,
+            .events = std.os.linux.POLL.IN,
+            .revents = undefined,
+        };
+        // Buffer to holf the user input
+        var buffer: [16]u8 = undefined;
+
+        _ = try std.os.linux.poll(&fds, -1, 5);
+        _ = try std.os.linux.read(self.tty.handle, &buffer, 16);
+
+        std.debug.print("{s}", .{buffer});
+    }
+
+    fn print_controller_input_windows(self: *Computer) void {
         if (!self.isPressed) {
             if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
                 if (self.r != 0x1F) self.r += 1 else self.r = 0;
@@ -393,6 +422,8 @@ pub fn main() !void {
     }
 
     std.debug.print("\x1B[H\x1B[2J", .{});
+    comp.tty = try std.fs.cwd().openFile("/dev/tty", .{ .mode = .read_write });
+    defer comp.tty.close();
 
     // emulate
     var count: u32 = 0;
