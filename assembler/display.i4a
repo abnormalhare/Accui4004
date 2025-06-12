@@ -31,7 +31,7 @@ FIM 1 41
     LD 2     ; load Y position
 
 ; get Y position on display
-015:     ; do {
+015:         ; do {
     JCN A 1F ;
     DAC      ; decrement Y
     INC A    ; increment Y counter
@@ -43,7 +43,7 @@ FIM 1 41
     LD 3     ; load X position
 
 ; get X position on display
-020:     ; do {
+020:         ; do {
     JCN A 28 ;
     DAC      ; decrement X
     INC B    ; increment X counter
@@ -114,13 +114,13 @@ FIM 1 41
 ; Shift Reg code
 
 070:
-    LD E
-    SRC 6
-    WRR
-    LDM 4
-    SRC 6
-    WRR
-    ISZ F 70
+    LD E     ; load nibble to send
+    SRC 6    ; send to specified IO port
+    WRR      ; 
+    LDM 4    ; enable
+    SRC 6    ;
+    WRR      ; 
+    ISZ F 70 ; if the inverse counter is 0, return
     BBL 0
 
 07C:
