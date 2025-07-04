@@ -2,3 +2,4 @@
 zig-out/
 personal/
 docs/download/
+*.zip
