@@ -8,7 +8,7 @@ const incStep = @import("enum.zig").incStep;
 
 pub const Intel4001 = struct {
     chip_num: u4,
-    rom: [0x200]u4,
+    rom: [0x100]u8,
     is_chip: bool,
     is_io_chip: bool,
 
@@ -24,7 +24,7 @@ pub const Intel4001 = struct {
 
     step: TIMING,
 
-    pub fn init(chip_num: u4, rom: *const [0x200]u4) !*Intel4001 {
+    pub fn init(chip_num: u4, rom: *const [0x100]u8) !*Intel4001 {
         const i = try alloc.create(Intel4001);
 
         i.chip_num = chip_num;
@@ -85,10 +85,14 @@ pub const Intel4001 = struct {
         self.exec = num;
     }
 
-    fn getData(self: *Intel4001, offset: u8) void {
+    fn getData(self: *Intel4001, step: u8) void {
         if (!self.is_chip) return;
 
-        self.buffer = self.rom[@as(u32, self.address) * 2 + offset];
+        if (step == 0) {
+            self.buffer = @truncate(self.rom[@as(u32, self.address)] >> 4);
+        } else {
+            self.buffer = @truncate(self.rom[@as(u32, self.address)] >> 0);
+        }
     }
 
     fn zeroOut(self: *Intel4001) void {

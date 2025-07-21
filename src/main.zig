@@ -88,9 +88,12 @@ const Computer = struct {
         var buf = try gpa_alloc.alloc(u8, 0);
         defer gpa_alloc.free(buf);
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}\n", .{
+        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3} || STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3}\n", .{
             self.cpu.instr,
             self.cpu.stack[0],
+            self.cpu.stack[1],
+            self.cpu.stack[2],
+            self.cpu.stack[3],
         });
 
         var time = @intFromEnum(self.cpu.step);
@@ -101,7 +104,7 @@ const Computer = struct {
             3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, @as(TIMING, @enumFromInt(time)), if (Clock.p1) "p1" else "p2"}),
         };
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> DECODER: {any}\n> CM: {b:0>1} | {b:0>4}\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> CM: {b:0>1} | {b:0>4} / {any}\n", .{ buf,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.shift_regs[0].buffer,
@@ -109,9 +112,9 @@ const Computer = struct {
             self.controller.timing,
             self.controller.clock,
             self.controller.out,
-            self.decoder.out,
             self.cpu.cm,
             self.cpu.cmram,
+            self.decoder.out,
         });
         buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4} | 2 IO: {b:0>4}\n> REGS:\n >", .{ buf,
             self.roms[0].io,
@@ -262,11 +265,15 @@ const Computer = struct {
         }
     }
 
-    fn pause(self: *Computer) void {
-        while (!zeys.isPressed(zeys.VK.VK_RETURN)) {}
-        while (zeys.isPressed(zeys.VK.VK_RETURN)) {}
-
-        _ = self;
+    fn pause(self: *Computer) !void {
+        while (!zeys.isPressed(zeys.VK.VK_RETURN)) {
+            self.print_controller_input();
+            try self.print_state();
+        }
+        while (zeys.isPressed(zeys.VK.VK_RETURN)) {
+            self.print_controller_input();
+            try self.print_state();
+        }
     }
 
     fn tick(self: *Computer) !void {
@@ -307,7 +314,7 @@ const Computer = struct {
 
         if (((self.step == 2 and Clock.p2) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
             try self.print_state();
-            self.pause();
+            try self.pause();
         } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
             if (self.threadEnded2) {
                 self.threadEnded2 = false;
@@ -316,7 +323,7 @@ const Computer = struct {
             }
 
             if (self.step == 1) {
-                self.pause();
+                try self.pause();
             }
         }
 
@@ -332,14 +339,24 @@ const Computer = struct {
         self.cpu = try Intel4004.init();
 
         // ROM INIT
-        var fileROM: *u4 = try romcopy.getROM(filename);
+        var file = try std.fs.cwd().openFile(filename, .{});
+        defer file.close();
+        
+        var checkStr: [3]u8 = .{ 0, 0, 0 };
+        _ = try file.read(&checkStr);
+        if (!std.mem.eql(u8, &checkStr, "i44")) {
+            return error.NotI4004File;
+        }
+        try file.seekTo(0x10);
+
         var i: u8 = 0;
         while (i < 16) {
-            var rom: [0x200]u4 = undefined;
-            romcopy.copyROM(&rom, fileROM);
+            const readROM: []u8 = try alloc.alloc(u8, 0x100);
+            _ = try file.read(readROM);
+            var rom: [0x100]u8 = undefined;
+            romcopy.copyROM(&rom, readROM);
             self.roms[i] = try Intel4001.init(@intCast(i), &rom);
             i += 1;
-            fileROM = @ptrFromInt(@intFromPtr(fileROM) + 0x200);
         }
 
         // RAM INIT
