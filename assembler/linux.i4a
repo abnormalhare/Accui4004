@@ -1,5 +1,61 @@
+; dissasembled code from the Linux/4004 project from Dmitry
+; find it here at https://dmitry.gr/?r=05.Projects&proj=35.%20Linux4004
 FIM 2 98
 JUN B74
+
+007:
+JUN 035
+
+009:
+LDM 1
+DCL
+SRC 6
+WMP
+BBL 0
+
+00E:
+LDM 1
+DCL
+SRC 6
+WMP
+LDM 1
+DCL
+SRC 6
+WMP
+LDM 1
+DCL
+SRC 6
+WMP
+LDM 1
+DCL
+SRC 6
+WMP
+LDM 1
+DCL
+SRC 6
+WMP
+LDM 1
+DCL
+SRC 6
+WMP
+LDM 1
+DCL
+SRC 6
+WMP
+NOP
+NOP
+LDM 1
+DCL
+SRC 6
+WMP
+FIM 6 00
+LDM 1
+SRC 6
+WMP
+FIM 6 00
+JMS 01E
+LDM 2
+DCL
 
 06C:
 LDM 1

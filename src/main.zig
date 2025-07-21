@@ -19,16 +19,17 @@ const Clock = @import("4801.zig");
 const Computer = struct {
     enable_state: u8,
 
-    // layout: 1 CPU, 16 ROM, 32 RAM, 10-bit SR connected to ROM 0,
+    // layout: 1 CPU, 32 ROM (banked), 32 RAM, 10-bit SR connected to ROM 0,
     //   Controller with input from ROM 0 and output to ROM 1
     // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
     cpu: *Intel4004,
-    roms: [16]*Intel4001,
+    roms: [32]*Intel4001,
     rams: [32]*Intel4002,
     shift_regs: [2]*Intel4003,
     decoder: *Intel3205,
     controller: *Controller,
     display: *Display,
+    bank: u1,
     r: u8 = 0,
     threadEnded: bool = true,
     threadEnded2: bool = true,
@@ -88,8 +89,9 @@ const Computer = struct {
         var buf = try gpa_alloc.alloc(u8, 0);
         defer gpa_alloc.free(buf);
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3} || STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3}\n", .{
+        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM ({b}) 0x{X:0>3} || STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3}\n", .{
             self.cpu.instr,
+            self.bank,
             self.cpu.stack[0],
             self.cpu.stack[1],
             self.cpu.stack[2],
@@ -116,10 +118,13 @@ const Computer = struct {
             self.cpu.cmram,
             self.decoder.out,
         });
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4} | 2 IO: {b:0>4}\n> REGS:\n >", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4} | 2 IO: {b:0>4}\n>", .{ buf,
             self.roms[0].io,
             self.roms[1].io,
             self.roms[2].io,
+        });
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> RAM IO: {b:0>4}\n> REGS:\n >", .{ buf,
+            self.rams[5].io,
         });
 
         var i: u8 = 0;
@@ -202,21 +207,24 @@ const Computer = struct {
             bus = self.cpu.buffer;
             self.decoder.in = @intCast(self.cpu.cmram >> 1);
         } else if (t == 1) { // roms
-            bus = self.roms[num].buffer;
+            bus = self.roms[@as(u8, num) + (16 * @as(u8, self.bank))].buffer;
             if (num == 0) {
-                self.controller.signal = @truncate((self.roms[0].io & 1) >> 0);
+                self.controller.signal =     @truncate((self.roms[0].io & 1) >> 0);
                 self.shift_regs[0].data_in = @truncate((self.roms[0].io & 2) >> 1);
                 self.shift_regs[0].enable  = @truncate((self.roms[0].io & 4) >> 2);
                 self.shift_regs[0].clock   = @truncate((self.roms[0].io & 8) >> 3);
             }
             if (num == 2) {
-                self.display.signal = @truncate((self.roms[2].io & 1) >> 0);
+                self.display.signal =        @truncate((self.roms[2].io & 1) >> 0);
                 self.shift_regs[1].data_in = @truncate((self.roms[2].io & 2) >> 1);
                 self.shift_regs[1].enable  = @truncate((self.roms[2].io & 4) >> 2);
                 self.shift_regs[1].clock   = @truncate((self.roms[2].io & 8) >> 3);
             }
         } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
+            if (num == 5) {
+                self.bank = @truncate(self.rams[5].io & 1);
+            }
         } else if (t == 4) { // controller
             self.shift_regs[0].clock |= self.controller.clock;
             self.shift_regs[0].data_in = self.controller.out;
@@ -350,12 +358,12 @@ const Computer = struct {
         try file.seekTo(0x10);
 
         var i: u8 = 0;
-        while (i < 16) {
+        while (i < 32) {
             const readROM: []u8 = try alloc.alloc(u8, 0x100);
             _ = try file.read(readROM);
             var rom: [0x100]u8 = undefined;
             romcopy.copyROM(&rom, readROM);
-            self.roms[i] = try Intel4001.init(@intCast(i), &rom);
+            self.roms[i] = try Intel4001.init(@truncate(i), &rom);
             i += 1;
         }
 
@@ -365,6 +373,7 @@ const Computer = struct {
             self.rams[i] = try Intel4002.init(@truncate(i));
             i += 1;
         }
+        self.bank = 0;
 
         // DECODER INIT
         self.decoder = try Intel3205.init();
@@ -402,7 +411,7 @@ pub fn main() !void {
         filename = try alloc.alloc(u8, path.len);
         @memcpy(filename, path);
     } else {
-        std.debug.print("Command Usage: [emu].exe [filename].i44", .{});
+        std.debug.print("Command Usage: [emu].exe [filename].i44 (step|cycle_step|subcycle_step)", .{});
         return;
     }
 
@@ -411,8 +420,8 @@ pub fn main() !void {
 
     if (argsIterator.next()) |run| {
         comp.step = @as(u2, @intFromBool(std.mem.eql(u8, run, "step")));
-        comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "small_step"))) * 2;
-        comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "tiny_step"))) * 3;
+        comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "cycle_step"))) * 2;
+        comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "subcycle_step"))) * 3;
     } else {
         comp.step = 0;
     }

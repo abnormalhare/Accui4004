@@ -30,7 +30,7 @@ def write(file, *args: int) -> bytes:
 
     return b
 
-def interpret(file, line: str, linenum: int) -> bytes:
+def interpret(file, line: str, linenum: int) -> bytes | int:
     line = line.split(" ")
     instruction: str = line[0].upper()
     ret: bytes = b''
@@ -80,8 +80,7 @@ def interpret(file, line: str, linenum: int) -> bytes:
         ret += write(file, val)
     elif instruction == "JIN":
         val: int = 0x30 + get_hex(line[index], linenum) * 2 + 1
-
-        ret += write(file, byte1, byte2)
+        ret += write(file, val)
     elif instruction == "JUN":
         addr: int = get_hex(line[index], linenum)
         byte1: int = 0x40 + (addr >> 8)
@@ -169,7 +168,7 @@ def run(filename: str) -> None:
     for n, line in enumerate(f.readlines()):
         line = line[:-1] if '\n' in line else line
         temp = interpret(g, line, n+1)
-        if temp == -1:
+        if isinstance(temp, int):
             break
         data += temp
     
