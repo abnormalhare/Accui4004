@@ -3,6 +3,7 @@ const alloc = @import("root.zig").alloc;
 const zeys = @import("zeys");
 const builtin = @import("builtin");
 const romcopy = @import("romcopy.zig");
+const reader = std.io.getStdIn().reader();
 
 const Intel4001 = @import("4001.zig").Intel4001;
 const Intel4002 = @import("4002.zig").Intel4002;
@@ -22,8 +23,7 @@ const ChipType = enum(u8) {
 };
 
 pub const Motherboard = struct {
-    enable_state: u8,
-
+    // Simulation variables
     cpu: *Intel4004,
     roms: [32]*Intel4001,
     rams: [32]*Intel4002,
@@ -32,17 +32,23 @@ pub const Motherboard = struct {
     controller: *Controller,
     display: *Display,
     bank: u1,
-    r: u8 = 0,
-    threadEnded: bool = true,
-    threadEnded2: bool = true,
-    isPressed: bool,
 
+    // meta-variables
+    running: bool,
+    r: u8 = 0,
+    threadEnded: bool,
+    threadEnded2: bool,
+    isPressed: bool,
     step: u2,
-    linux_key_buffer: [16]u8,
+
+    // linux variables
+    tty_file: std.fs.File,
 
     fn print_controller_input(self: *Motherboard) void {
         if (builtin.target.os.tag == .windows) {
             _ = self.print_controller_input_windows();
+        } else if (builtin.target.os.tag == .linux) {
+            _ = self.print_controller_input_linux();
         }
         self.threadEnded = true;
     }
@@ -50,6 +56,8 @@ pub const Motherboard = struct {
     fn print_controller_input_paused(self: *Motherboard) bool {
         if (builtin.target.os.tag == .windows) {
             return self.print_controller_input_windows();
+        } else if (builtin.target.os.tag == .linux) {
+            return self.print_controller_input_linux();
         } else {
             return false;
         }
@@ -68,9 +76,57 @@ pub const Motherboard = struct {
                 return true;
             }
         } else {
-            if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT) and !zeys.isPressed(zeys.VK.VK_R)) {
+            if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT)) {
                 self.isPressed = false;
             }
+        }
+
+        return false;
+    }
+
+    fn print_controller_input_linux(self: *Motherboard) bool {
+        const linux = std.os.linux;
+        const tty_fd = self.tty_file.handle;
+
+        var old_settings: linux.termios = undefined;
+        _ = linux.tcgetattr(tty_fd, &old_settings);
+
+        var new_settings: linux.termios = old_settings;
+        new_settings.lflag.ICANON = false;
+        new_settings.lflag.ECHO = false;
+        
+        _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &new_settings);
+
+        var is_non_alphanum_key: bool = false;
+        var is_non_alphanum_key2: bool = false;
+        var did_have_non_alphanum_key: bool = false;
+        while (true) {
+            const key: u8 = reader.readByte() catch |err| switch (err) { else => break };
+
+            if (is_non_alphanum_key2) {
+                did_have_non_alphanum_key = true;
+                if (!self.isPressed) {
+                    if (key == 'C') { // right
+                        if (self.r != 0x1F) self.r += 1 else self.r = 0;
+                        self.isPressed = true;
+                        return true;
+                    }
+                    if (key == 'D') {
+                        if (self.r != 0) self.r -= 1 else self.r = 0x1F;
+                        self.isPressed = true;
+                        return true;
+                    }
+                }
+            }
+
+            if (is_non_alphanum_key) {
+                is_non_alphanum_key2 = (key == '[');
+            }
+
+            is_non_alphanum_key = (key == 27);
+        }
+        if (!did_have_non_alphanum_key) {
+            self.isPressed = false;
         }
 
         return false;
@@ -375,8 +431,18 @@ pub const Motherboard = struct {
         Clock.p2 = false;
     }
 
+    pub fn deinit(self: *Motherboard) void {
+        self.tty_file.close();
+    }
+
+    pub fn linux_init(self: *Motherboard) void {
+        self.tty_file = try std.fs.openFileAbsolute("/dev/tty", .{});
+    }
+
     pub fn init(filename: []u8) !*Motherboard {
         const self: *Motherboard = try alloc.create(Motherboard);
+
+        self.running = true;
 
         // CPU INIT
         self.r = 0;
@@ -431,6 +497,10 @@ pub const Motherboard = struct {
         self.threadEnded = true;
         self.threadEnded2 = true;
         self.isPressed = false;
+
+        if (builtin.target.os.tag == .linux) {
+            self.linux_init();
+        }
 
         return self;
     }
