@@ -4,6 +4,8 @@ const alloc = @import("root.zig").alloc;
 const Motherboard = @import("motherboard.zig").Motherboard;
 const Clock = @import("4801.zig");
 
+pub var comp: *Motherboard = undefined;
+
 pub fn main() !void {
     // startup
     var argsIterator = try std.process.ArgIterator.initWithAllocator(alloc);
@@ -21,7 +23,7 @@ pub fn main() !void {
         return;
     }
 
-    var comp: *Motherboard = try Motherboard.init(filename);
+    comp = try Motherboard.init(filename);
     Clock.setTime = std.time.nanoTimestamp();
 
     if (argsIterator.next()) |run| {

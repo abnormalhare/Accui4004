@@ -123,6 +123,8 @@ pub const Motherboard = struct {
 
             is_non_alphanum_key = (key == 27);
         }
+        
+        _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &old_settings);
 
         return false;
     }
