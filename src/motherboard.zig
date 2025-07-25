@@ -436,21 +436,11 @@ pub const Motherboard = struct {
         self.display.tick();
         self.sync_motherboard(.DISPLAY, 0);
         
-        // switch (self.step) {
-        //     0 => try self.check_threads(),
-        //     1 => if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.pause(),
-        //     2 => if (self.step == 2 and Clock.p2 and !self.cpu.reset) try self.pause(),
-        //     3 => if (self.step == 3 and (Clock.p1 or Clock.p2) and !self.cpu.reset) try self.pause()
-        // }
-
-        if (((self.step == 2 and Clock.p2) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
-            try self.pause();
-        } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
-            if (self.step == 1) {
-                try self.pause();
-            } else {
-                try self.check_threads();
-            }
+        switch (self.step) {
+            0 => if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.check_threads(),
+            1 => if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.pause(),
+            2 => if (self.step == 2 and Clock.p2 and !self.cpu.reset) try self.pause(),
+            3 => if (self.step == 3 and (Clock.p1 or Clock.p2) and !self.cpu.reset) try self.pause()
         }
 
         Clock.p1 = false;
