@@ -140,7 +140,7 @@ pub const Motherboard = struct {
         defer {
             const deinit_status = gpa.deinit();
             if (deinit_status == .leak) {
-                @panic("LEAK");
+                @panic("LEAK @ print_state");
             }
         }
 
@@ -150,12 +150,13 @@ pub const Motherboard = struct {
         const writer = list.writer();
         try writer.print("-----------------------------------------------------------\n", .{});
 
-        try writer.print("| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{
+        try writer.print("| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} | isPressed: {}\n", .{
             self.cpu.instr,
             @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12),
             self.cpu.stack[1],
             self.cpu.stack[2],
             self.cpu.stack[3],
+            self.isPressed
         });
 
         var time = @intFromEnum(self.cpu.step);

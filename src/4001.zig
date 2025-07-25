@@ -30,6 +30,7 @@ pub const Intel4001 = struct {
         i.chip_num = chip_num;
         i.rom = rom.*;
         i.is_chip = false;
+        i.is_io_chip = false;
 
         return i;
     }
