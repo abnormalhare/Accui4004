@@ -133,15 +133,22 @@ pub const Motherboard = struct {
     }
 
     fn print_state(self: *Motherboard) !void {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
         const gpa_alloc = gpa.allocator();
-        
-        var buf = try gpa_alloc.alloc(u8, 0);
-        defer gpa_alloc.free(buf);
+        defer {
+            const deinit_status = gpa.deinit();
+            if (deinit_status == .leak) {
+                @panic("LEAK");
+            }
+        }
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "-----------------------------------------------------------\n", .{});
+        var list = std.ArrayList(u8).init(gpa_alloc);
+        defer list.deinit();
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{ buf,
+        const writer = list.writer();
+        try writer.print("-----------------------------------------------------------\n", .{});
+
+        try writer.print("| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{
             self.cpu.instr,
             @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12),
             self.cpu.stack[1],
@@ -153,15 +160,15 @@ pub const Motherboard = struct {
         if (Clock.p2) time, _ = @subWithOverflow(time, 1);
 
         const name: []const u8 = std.enums.tagName(TIMING, @enumFromInt(time)).?;
-        buf = switch (self.step) {
-            else => buf,
-            2 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  |                |                          |\n", .{buf, name}),
-            3 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{buf, name, if (Clock.p1) "p1" else "p2"}),
-        };
+        switch (self.step) {
+            else => {},
+            2 => try writer.print("| TIMING: {s}  |                |                          |\n", .{name}),
+            3 => try writer.print("| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{name, if (Clock.p1) "p1" else "p2"}),
+        }
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|---------------------------------------------------------|-,----------,\n", .{ buf });
+        try writer.print("|---------------------------------------------------------|-,----------,\n", .{});
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| REGS | ACC: 0x{X:0>1}  C: {b} | CONT: [{X} {b}]->{b} | CMROM: {b:0>1}       | |  I-4004  |\n", .{ buf,
+        try writer.print("| REGS | ACC: 0x{X:0>1}  C: {b} | CONT: [{X} {b}]->{b} | CMROM: {b:0>1}       | |  I-4004  |\n", .{
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.controller.timing,
@@ -169,24 +176,24 @@ pub const Motherboard = struct {
             self.controller.out,
             self.cpu.cm,
         });
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-----------------------|----------------| CMRAM: {b:0>4}    | |----------|\n", .{ buf,
+        try writer.print("|-----------------------|----------------| CMRAM: {b:0>4}    | |----------|\n", .{
             self.cpu.cmram
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3],
             self.display.disp[0][0], self.display.disp[0][1], self.display.disp[0][2], self.display.disp[0][3],
             self.display.disp[0][4], self.display.disp[0][5], self.display.disp[0][6], self.display.disp[0][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], 
             self.shift_regs[0].buffer,
             self.display.disp[1][0], self.display.disp[1][1], self.display.disp[1][2], self.display.disp[1][3],
             self.display.disp[1][4], self.display.disp[1][5], self.display.disp[1][6], self.display.disp[1][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], 
             self.shift_regs[1].buffer,
             self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7],
@@ -194,18 +201,18 @@ pub const Motherboard = struct {
             self.display.disp[2][4], self.display.disp[2][5], self.display.disp[2][6], self.display.disp[2][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], 
             self.display.disp[3][0], self.display.disp[3][1], self.display.disp[3][2], self.display.disp[3][3],
             self.display.disp[3][4], self.display.disp[3][5], self.display.disp[3][6], self.display.disp[3][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}----------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+        try writer.print("----------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.display.disp[4][0], self.display.disp[4][1], self.display.disp[4][2], self.display.disp[4][3],
             self.display.disp[4][4], self.display.disp[4][5], self.display.disp[4][6], self.display.disp[4][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| ROM IO          | RAM IO          | RAM[{X:0>2}]             | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+        try writer.print("| ROM IO          | RAM IO          | RAM[{X:0>2}]             | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.r,
             self.display.disp[5][0], self.display.disp[5][1], self.display.disp[5][2], self.display.disp[5][3],
             self.display.disp[5][4], self.display.disp[5][5], self.display.disp[5][6], self.display.disp[5][7]
@@ -214,7 +221,7 @@ pub const Motherboard = struct {
         var i: u8 = 0;
         while (i < 4) {
             const ii: u8 = i * 4;
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | ", .{buf,
+            try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | ", .{
                 self.roms[ii + 0].io,
                 self.roms[ii + 1].io,
                 self.roms[ii + 2].io,
@@ -226,7 +233,7 @@ pub const Motherboard = struct {
             });
             var j: u8 = 0;
             while (j < 4) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{ buf,
+                try writer.print("{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{
                     self.rams[self.r].ram[j].data[ii + 0],
                     self.rams[self.r].ram[j].data[ii + 1],
                     self.rams[self.r].ram[j].data[ii + 2],
@@ -238,32 +245,32 @@ pub const Motherboard = struct {
             switch (i) {
                 else => {},
                 0 => {
-                    buf = try std.fmt.allocPrint(gpa_alloc, "{s}| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{ buf,
+                    try writer.print("| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{
                         self.display.disp[6][0], self.display.disp[6][1], self.display.disp[6][2], self.display.disp[6][3],
                         self.display.disp[6][4], self.display.disp[6][5], self.display.disp[6][6], self.display.disp[6][7]
                     });
                 },
                 1 => {
-                    buf = try std.fmt.allocPrint(gpa_alloc, "{s}| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{ buf,
+                    try writer.print("| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{
                         self.display.disp[7][0], self.display.disp[7][1], self.display.disp[7][2], self.display.disp[7][3],
                         self.display.disp[7][4], self.display.disp[7][5], self.display.disp[7][6], self.display.disp[7][7]
                     });
                 },
                 2 => {
-                    buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-'----------'\n", .{ buf });
+                    try writer.print("|-'----------'\n", .{});
                 }
             }
 
             if (i != 2)
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{ buf });
+                try writer.print("|\n", .{});
 
             i += 1;
         }
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+        try writer.print("-----------------------------------------------------------\n", .{});
 
         std.debug.print("\x1B[H", .{});
-        std.debug.print("{s}", .{buf});
+        std.debug.print("{s}", .{list.items});
 
         self.threadEnded2 = true;
     }
