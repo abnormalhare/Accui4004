@@ -27,6 +27,7 @@ pub const Intel4004 = struct {
 
     pub fn init() !*Intel4004 {
         const i: *Intel4004 = try alloc.create(Intel4004);
+
         return i;
     }
 
