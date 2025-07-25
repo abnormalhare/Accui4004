@@ -103,21 +103,17 @@ pub const Motherboard = struct {
         var is_non_alphanum_key2: bool = false;
         var did_have_non_alphanum_key: bool = false;
         while (true) {
-            const key: u8 = reader.readByte() catch |err| switch (err) { else => break };
+            const key: u8 = reader.readByte() catch break;
 
             if (is_non_alphanum_key2) {
                 did_have_non_alphanum_key = true;
-                if (!self.isPressed) {
-                    if (key == 'C') { // right
-                        if (self.r != 0x1F) self.r += 1 else self.r = 0;
-                        self.isPressed = true;
-                        return true;
-                    }
-                    if (key == 'D') {
-                        if (self.r != 0) self.r -= 1 else self.r = 0x1F;
-                        self.isPressed = true;
-                        return true;
-                    }
+                if (key == 'C') { // right
+                    if (self.r != 0x1F) self.r += 1 else self.r = 0;
+                    return true;
+                }
+                if (key == 'D') {
+                    if (self.r != 0) self.r -= 1 else self.r = 0x1F;
+                    return true;
                 }
             }
 
@@ -126,9 +122,6 @@ pub const Motherboard = struct {
             }
 
             is_non_alphanum_key = (key == 27);
-        }
-        if (!did_have_non_alphanum_key) {
-            self.isPressed = false;
         }
 
         return false;
@@ -150,7 +143,7 @@ pub const Motherboard = struct {
         const writer = list.writer();
         try writer.print("-----------------------------------------------------------\n", .{});
 
-        try writer.print("| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} | isPressed: {}\n", .{
+        try writer.print("| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{
             self.cpu.instr,
             @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12),
             self.cpu.stack[1],
