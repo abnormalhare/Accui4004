@@ -2,7 +2,7 @@ const std = @import("std");
 const alloc = @import("root.zig").alloc;
 const zeys = @import("zeys");
 const builtin = @import("builtin");
-const tty_file = @import("main.zig").comp.tty_file;
+const main = @import("main.zig");
 const reader = std.io.getStdIn().reader();
 
 // this is a theoretical external device! there is no equivelant to this in real life!
@@ -42,7 +42,7 @@ pub const Controller = struct {
             }
         } else if (builtin.target.os.tag == .linux) {
             const linux = std.os.linux;
-            const tty_fd = self.tty_file.handle;
+            const tty_fd = main.comp.tty_file.handle;
 
             var old_settings: linux.termios = undefined;
             _ = linux.tcgetattr(tty_fd, &old_settings);
