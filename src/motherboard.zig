@@ -443,7 +443,7 @@ pub const Motherboard = struct {
         //     3 => if (self.step == 3 and (Clock.p1 or Clock.p2) and !self.cpu.reset) try self.pause()
         // }
 
-        if (((self.step == 2 and Clock.p2 and self.cpu.reg[0xF] > 0) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
+        if (((self.step == 2 and Clock.p2) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
             try self.pause();
         } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
             if (self.step == 1) {
