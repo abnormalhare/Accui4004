@@ -207,7 +207,7 @@ pub const Motherboard = struct {
             self.display.disp[3][4], self.display.disp[3][5], self.display.disp[3][6], self.display.disp[3][7]
         });
 
-        try writer.print("----------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
+        try writer.print("|---------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
             self.display.disp[4][0], self.display.disp[4][1], self.display.disp[4][2], self.display.disp[4][3],
             self.display.disp[4][4], self.display.disp[4][5], self.display.disp[4][6], self.display.disp[4][7]
         });

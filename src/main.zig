@@ -15,7 +15,7 @@ pub fn main() !void {
         filename = try alloc.alloc(u8, path.len);
         @memcpy(filename, path);
     } else {
-        std.debug.print("Command Usage: [emu].exe [filename].i44 (step|cycle_step|subcycle_step)", .{});
+        std.debug.print("Command Usage: [emu].exe [filename].i44 (step|cycle_step|subcycle_step)\n", .{});
         return;
     }
 
