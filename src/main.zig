@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const alloc = @import("root.zig").alloc;
 const Motherboard = @import("motherboard.zig").Motherboard;
 const Clock = @import("4801.zig");
@@ -40,7 +41,7 @@ pub fn main() !void {
     for (&comp.rams) |*ram| {
         ram.*.reset = true;
     }
-    while (true) {
+    while (comp.running) {
         Clock.tick();
         if (Clock.p2) {
             count += 1;
@@ -56,4 +57,5 @@ pub fn main() !void {
             }
         }
     }
+    comp.deinit();
 }
