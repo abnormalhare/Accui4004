@@ -38,32 +38,34 @@ pub const Motherboard = struct {
     r: u8 = 0,
     threadEnded: bool,
     threadEnded2: bool,
+    contThread: ?std.Thread, // Add thread handles
+    debugThread: ?std.Thread,
     isPressed: bool,
     step: u2,
 
     // linux variables
     tty_file: std.fs.File,
 
-    fn print_controller_input(self: *Motherboard) void {
+    fn get_controller_input(self: *Motherboard) void {
         if (builtin.target.os.tag == .windows) {
-            _ = self.print_controller_input_windows();
+            _ = self.get_controller_input_windows();
         } else if (builtin.target.os.tag == .linux) {
-            _ = self.print_controller_input_linux();
+            _ = self.get_controller_input_linux();
         }
         self.threadEnded = true;
     }
 
-    fn print_controller_input_paused(self: *Motherboard) bool {
+    fn get_controller_input_paused(self: *Motherboard) bool {
         if (builtin.target.os.tag == .windows) {
-            return self.print_controller_input_windows();
+            return self.get_controller_input_windows();
         } else if (builtin.target.os.tag == .linux) {
-            return self.print_controller_input_linux();
+            return self.get_controller_input_linux();
         } else {
             return false;
         }
     }
 
-    fn print_controller_input_windows(self: *Motherboard) bool {
+    fn get_controller_input_windows(self: *Motherboard) bool {
         if (!self.isPressed) {
             if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
                 if (self.r != 0x1F) self.r += 1 else self.r = 0;
@@ -84,7 +86,7 @@ pub const Motherboard = struct {
         return false;
     }
 
-    fn print_controller_input_linux(self: *Motherboard) bool {
+    fn get_controller_input_linux(self: *Motherboard) bool {
         const linux = std.os.linux;
         const tty_fd = self.tty_file.handle;
 
@@ -369,16 +371,35 @@ pub const Motherboard = struct {
         try self.print_state();
 
         while (!zeys.isPressed(zeys.VK.VK_RETURN)) {
-            const toPrint: bool = self.print_controller_input_paused();
+            const toPrint: bool = self.get_controller_input_paused();
             if (toPrint) {
                 try self.print_state();
             }
         }
         while (zeys.isPressed(zeys.VK.VK_RETURN)) {
-            const toPrint: bool = self.print_controller_input_paused();
+            const toPrint: bool = self.get_controller_input_paused();
             if (toPrint) {
                 try self.print_state();
             }
+        }
+    }
+
+    fn check_threads(self: *Motherboard) !void {
+        if (self.threadEnded) {
+            self.threadEnded = false;
+            if (self.contThread) |*t| {
+                t.join();
+                self.contThread = null;
+            }
+            self.contThread = try std.Thread.spawn(.{}, get_controller_input, .{self});
+        }
+        if (self.threadEnded2) {
+            self.threadEnded2 = false;
+            if (self.debugThread) |*t| {
+                t.join();
+                self.debugThread = null;
+            }
+            self.debugThread = try std.Thread.spawn(.{}, print_state, .{self});
         }
     }
 
@@ -414,6 +435,13 @@ pub const Motherboard = struct {
 
         self.display.tick();
         self.sync_motherboard(.DISPLAY, 0);
+        
+        // switch (self.step) {
+        //     0 => try self.check_threads(),
+        //     1 => if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.pause(),
+        //     2 => if (self.step == 2 and Clock.p2 and !self.cpu.reset) try self.pause(),
+        //     3 => if (self.step == 3 and (Clock.p1 or Clock.p2) and !self.cpu.reset) try self.pause()
+        // }
 
         if (((self.step == 2 and Clock.p2 and self.cpu.reg[0xF] > 0) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
             try self.pause();
@@ -421,16 +449,7 @@ pub const Motherboard = struct {
             if (self.step == 1) {
                 try self.pause();
             } else {
-                if (self.threadEnded) {
-                    self.threadEnded = false;
-                    const contThread: std.Thread = try std.Thread.spawn(.{}, print_controller_input, .{self});
-                    _ = contThread;
-                }
-                if (self.threadEnded2) {
-                    self.threadEnded2 = false;
-                    const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
-                    _ = debugThread;
-                }
+                try self.check_threads();
             }
         }
 
@@ -439,6 +458,14 @@ pub const Motherboard = struct {
     }
 
     pub fn deinit(self: *Motherboard) void {
+        if (self.contThread) |*t| {
+            t.join();
+            self.contThread = null;
+        }
+        if (self.debugThread) |*t| {
+            t.join();
+            self.debugThread = null;
+        }
         self.tty_file.close();
     }
 
@@ -469,6 +496,8 @@ pub const Motherboard = struct {
         var i: u8 = 0;
         while (i < 32) {
             const readROM: []u8 = try alloc.alloc(u8, 0x100);
+            defer alloc.free(readROM);
+            
             _ = try file.read(readROM);
             var rom: [0x100]u8 = undefined;
             romcopy.copyROM(&rom, readROM);
@@ -500,9 +529,14 @@ pub const Motherboard = struct {
         // DISPLAY INIT
         self.display = try Display.init();
 
-        // DEBUG INIT
+        // THREAD INIT
+        self.contThread = null;
+        self.debugThread = null;
         self.threadEnded = true;
         self.threadEnded2 = true;
+
+        // DEBUG INIT
+        self.step = 0;
         self.isPressed = false;
 
         if (builtin.target.os.tag == .linux) {

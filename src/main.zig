@@ -5,12 +5,14 @@ const Motherboard = @import("motherboard.zig").Motherboard;
 const Clock = @import("4801.zig");
 
 pub fn main() !void {
-    var filename: []u8 = undefined;
     // startup
     var argsIterator = try std.process.ArgIterator.initWithAllocator(alloc);
     defer argsIterator.deinit();
 
     _ = argsIterator.next();
+    
+    var filename: []u8 = undefined;
+    defer alloc.free(filename);
     if (argsIterator.next()) |path| {
         filename = try alloc.alloc(u8, path.len);
         @memcpy(filename, path);
