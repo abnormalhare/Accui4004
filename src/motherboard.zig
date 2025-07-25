@@ -38,8 +38,6 @@ pub const Motherboard = struct {
     isPressed: bool,
 
     step: u2,
-    print_type: u1,
-    just_flipped_print_type: bool,
     linux_key_buffer: [16]u8,
 
     fn print_controller_input(self: *Motherboard) void {
@@ -69,12 +67,6 @@ pub const Motherboard = struct {
                 self.isPressed = true;
                 return true;
             }
-            if (zeys.isPressed(zeys.VK.VK_R)) {
-                self.isPressed = true;
-                self.print_type = ~self.print_type;
-                self.just_flipped_print_type = true;
-                return true;
-            }
         } else {
             if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT) and !zeys.isPressed(zeys.VK.VK_R)) {
                 self.isPressed = false;
@@ -85,18 +77,6 @@ pub const Motherboard = struct {
     }
 
     fn print_state(self: *Motherboard) !void {
-        if (self.just_flipped_print_type) {
-            self.just_flipped_print_type = false;
-            std.debug.print("\x1B[H\x1B[2J", .{});
-        }
-
-        switch (self.print_type) {
-            0 => try self.print_component_state(),
-            1 => try self.print_display_state(),
-        }
-    }
-
-    fn print_component_state(self: *Motherboard) !void {
         var gpa = std.heap.GeneralPurposeAllocator(.{}){};
         const gpa_alloc = gpa.allocator();
         
@@ -123,9 +103,9 @@ pub const Motherboard = struct {
             3 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{buf, name, if (Clock.p1) "p1" else "p2"}),
         };
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|---------------------------------------------------------|-,----------,\n", .{ buf });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| REGS | ACC: 0x{X:0>1}  C: {b} | CONT: [{X} {b}]->{b} | CMROM: {b:0>1}       |\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| REGS | ACC: 0x{X:0>1}  C: {b} | CONT: [{X} {b}]->{b} | CMROM: {b:0>1}       | |  I-4004  |\n", .{ buf,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
             self.controller.timing,
@@ -133,32 +113,47 @@ pub const Motherboard = struct {
             self.controller.out,
             self.cpu.cm,
         });
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-----------------------|----------------| CMRAM: {b:0>4}    |\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-----------------------|----------------| CMRAM: {b:0>4}    | |----------|\n", .{ buf,
             self.cpu.cmram
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------|\n", .{ buf,
-            self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3], 
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+            self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3],
+            self.display.disp[0][0], self.display.disp[0][1], self.display.disp[0][2], self.display.disp[0][3],
+            self.display.disp[0][4], self.display.disp[0][5], self.display.disp[0][6], self.display.disp[0][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     |\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
             self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], 
             self.shift_regs[0].buffer,
+            self.display.disp[1][0], self.display.disp[1][1], self.display.disp[1][2], self.display.disp[1][3],
+            self.display.disp[1][4], self.display.disp[1][5], self.display.disp[1][6], self.display.disp[1][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    |\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
             self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], 
             self.shift_regs[1].buffer,
-            self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7], 
+            self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7],
+            self.display.disp[2][0], self.display.disp[2][1], self.display.disp[2][2], self.display.disp[2][3],
+            self.display.disp[2][4], self.display.disp[2][5], self.display.disp[2][6], self.display.disp[2][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                |\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
             self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], 
+            self.display.disp[3][0], self.display.disp[3][1], self.display.disp[3][2], self.display.disp[3][3],
+            self.display.disp[3][4], self.display.disp[3][5], self.display.disp[3][6], self.display.disp[3][7]
         });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}----------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+            self.display.disp[4][0], self.display.disp[4][1], self.display.disp[4][2], self.display.disp[4][3],
+            self.display.disp[4][4], self.display.disp[4][5], self.display.disp[4][6], self.display.disp[4][7]
+        });
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| ROM IO          | RAM IO          | RAM[{X:0>2}]             |\n", .{ buf, self.r });
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| ROM IO          | RAM IO          | RAM[{X:0>2}]             | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ buf,
+            self.r,
+            self.display.disp[5][0], self.display.disp[5][1], self.display.disp[5][2], self.display.disp[5][3],
+            self.display.disp[5][4], self.display.disp[5][5], self.display.disp[5][6], self.display.disp[5][7]
+        });
 
         var i: u8 = 0;
         while (i < 4) {
@@ -184,42 +179,32 @@ pub const Motherboard = struct {
                 j += 1;
             }
 
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{ buf });
+            switch (i) {
+                else => {},
+                0 => {
+                    buf = try std.fmt.allocPrint(gpa_alloc, "{s}| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{ buf,
+                        self.display.disp[6][0], self.display.disp[6][1], self.display.disp[6][2], self.display.disp[6][3],
+                        self.display.disp[6][4], self.display.disp[6][5], self.display.disp[6][6], self.display.disp[6][7]
+                    });
+                },
+                1 => {
+                    buf = try std.fmt.allocPrint(gpa_alloc, "{s}| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{ buf,
+                        self.display.disp[7][0], self.display.disp[7][1], self.display.disp[7][2], self.display.disp[7][3],
+                        self.display.disp[7][4], self.display.disp[7][5], self.display.disp[7][6], self.display.disp[7][7]
+                    });
+                },
+                2 => {
+                    buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-'----------'\n", .{ buf });
+                }
+            }
+
+            if (i != 2)
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{ buf });
 
             i += 1;
         }
 
         buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
-
-        std.debug.print("\x1B[H", .{});
-        std.debug.print("{s}", .{buf});
-
-        self.threadEnded2 = true;
-    }
-
-    fn print_display_state(self: *Motherboard) !void {
-        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-        const gpa_alloc = gpa.allocator();
-        
-        var buf = try gpa_alloc.alloc(u8, 0);
-        defer gpa_alloc.free(buf);
-
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}/--------\\\n| I-4004 |\n|--------|\n", .{buf});
-
-        for (&self.display.disp) |scanline| {
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|", .{buf});
-            for (&scanline) |pixel| {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}{b}", .{buf, pixel});
-            }
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{buf});
-        }
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}\\--------/\n\n", .{buf});
-
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|| SCANLINE: {d} || SIG: {d}{d} ||\n", .{buf, self.display.scanline, self.display.prev_signal, self.display.signal});
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}  ||\n", .{buf,
-            self.cpu.instr,
-            self.cpu.stack[0],
-        });
 
         std.debug.print("\x1B[H", .{});
         std.debug.print("{s}", .{buf});
