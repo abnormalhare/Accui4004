@@ -1,0 +1,452 @@
+const std = @import("std");
+const alloc = @import("root.zig").alloc;
+const zeys = @import("zeys");
+const builtin = @import("builtin");
+const romcopy = @import("romcopy.zig");
+
+const Intel4001 = @import("4001.zig").Intel4001;
+const Intel4002 = @import("4002.zig").Intel4002;
+const Intel4003 = @import("4003.zig").Intel4003;
+const Intel4004 = @import("4004.zig").Intel4004;
+const Intel3205 = @import("3205.zig").Intel3205;
+
+const Controller = @import("controller.zig").Controller;
+const Display = @import("display.zig").Display;
+
+const TIMING = @import("enum.zig").TIMING;
+const Clock = @import("4801.zig");
+
+const ChipType = enum(u8) {
+    CPU, ROM, RAM, 
+    DECODER, CONTROLLER, SHIFT_REG, DISPLAY
+};
+
+pub const Motherboard = struct {
+    enable_state: u8,
+
+    cpu: *Intel4004,
+    roms: [32]*Intel4001,
+    rams: [32]*Intel4002,
+    shift_regs: [2]*Intel4003,
+    decoder: *Intel3205,
+    controller: *Controller,
+    display: *Display,
+    bank: u1,
+    r: u8 = 0,
+    threadEnded: bool = true,
+    threadEnded2: bool = true,
+    isPressed: bool,
+
+    step: u2,
+    print_type: u1,
+    just_flipped_print_type: bool,
+    linux_key_buffer: [16]u8,
+
+    fn print_controller_input(self: *Motherboard) void {
+        if (builtin.target.os.tag == .windows) {
+            _ = self.print_controller_input_windows();
+        }
+        self.threadEnded = true;
+    }
+
+    fn print_controller_input_paused(self: *Motherboard) bool {
+        if (builtin.target.os.tag == .windows) {
+            return self.print_controller_input_windows();
+        } else {
+            return false;
+        }
+    }
+
+    fn print_controller_input_windows(self: *Motherboard) bool {
+        if (!self.isPressed) {
+            if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
+                if (self.r != 0x1F) self.r += 1 else self.r = 0;
+                self.isPressed = true;
+                return true;
+            }
+            if (zeys.isPressed(zeys.VK.VK_LEFT)) {
+                if (self.r != 0) self.r -= 1 else self.r = 0x1F;
+                self.isPressed = true;
+                return true;
+            }
+            if (zeys.isPressed(zeys.VK.VK_R)) {
+                self.isPressed = true;
+                self.print_type = ~self.print_type;
+                self.just_flipped_print_type = true;
+                return true;
+            }
+        } else {
+            if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT) and !zeys.isPressed(zeys.VK.VK_R)) {
+                self.isPressed = false;
+            }
+        }
+
+        return false;
+    }
+
+    fn print_state(self: *Motherboard) !void {
+        if (self.just_flipped_print_type) {
+            self.just_flipped_print_type = false;
+            std.debug.print("\x1B[H\x1B[2J", .{});
+        }
+
+        switch (self.print_type) {
+            0 => try self.print_component_state(),
+            1 => try self.print_display_state(),
+        }
+    }
+
+    fn print_component_state(self: *Motherboard) !void {
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const gpa_alloc = gpa.allocator();
+        
+        var buf = try gpa_alloc.alloc(u8, 0);
+        defer gpa_alloc.free(buf);
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "-----------------------------------------------------------\n", .{});
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{ buf,
+            self.cpu.instr,
+            @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12),
+            self.cpu.stack[1],
+            self.cpu.stack[2],
+            self.cpu.stack[3],
+        });
+
+        var time = @intFromEnum(self.cpu.step);
+        if (Clock.p2) time, _ = @subWithOverflow(time, 1);
+
+        const name: []const u8 = std.enums.tagName(TIMING, @enumFromInt(time)).?;
+        buf = switch (self.step) {
+            else => buf,
+            2 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  |                |                          |\n", .{buf, name}),
+            3 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{buf, name, if (Clock.p1) "p1" else "p2"}),
+        };
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| REGS | ACC: 0x{X:0>1}  C: {b} | CONT: [{X} {b}]->{b} | CMROM: {b:0>1}       |\n", .{ buf,
+            self.cpu.acc,
+            @intFromBool(self.cpu.carry),
+            self.controller.timing,
+            self.controller.clock,
+            self.controller.out,
+            self.cpu.cm,
+        });
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-----------------------|----------------| CMRAM: {b:0>4}    |\n", .{ buf,
+            self.cpu.cmram
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------|\n", .{ buf,
+            self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3], 
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     |\n", .{ buf,
+            self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], 
+            self.shift_regs[0].buffer,
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    |\n", .{ buf,
+            self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], 
+            self.shift_regs[1].buffer,
+            self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7], 
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                |\n", .{ buf,
+            self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], 
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| ROM IO          | RAM IO          | RAM[{X:0>2}]             |\n", .{ buf, self.r });
+
+        var i: u8 = 0;
+        while (i < 4) {
+            const ii: u8 = i * 4;
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | ", .{buf,
+                self.roms[ii + 0].io,
+                self.roms[ii + 1].io,
+                self.roms[ii + 2].io,
+                self.roms[ii + 3].io,
+                self.rams[ii + 0].io,
+                self.rams[ii + 1].io,
+                self.rams[ii + 2].io,
+                self.rams[ii + 3].io,
+            });
+            var j: u8 = 0;
+            while (j < 4) {
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{ buf,
+                    self.rams[self.r].ram[j].data[ii + 0],
+                    self.rams[self.r].ram[j].data[ii + 1],
+                    self.rams[self.r].ram[j].data[ii + 2],
+                    self.rams[self.r].ram[j].data[ii + 3],
+                });
+                j += 1;
+            }
+
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{ buf });
+
+            i += 1;
+        }
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+
+        std.debug.print("\x1B[H", .{});
+        std.debug.print("{s}", .{buf});
+
+        self.threadEnded2 = true;
+    }
+
+    fn print_display_state(self: *Motherboard) !void {
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const gpa_alloc = gpa.allocator();
+        
+        var buf = try gpa_alloc.alloc(u8, 0);
+        defer gpa_alloc.free(buf);
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}/--------\\\n| I-4004 |\n|--------|\n", .{buf});
+
+        for (&self.display.disp) |scanline| {
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|", .{buf});
+            for (&scanline) |pixel| {
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}{b}", .{buf, pixel});
+            }
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{buf});
+        }
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}\\--------/\n\n", .{buf});
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|| SCANLINE: {d} || SIG: {d}{d} ||\n", .{buf, self.display.scanline, self.display.prev_signal, self.display.signal});
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|| INSTR: 0x{X:0>2} || @ROM 0x{X:0>3}  ||\n", .{buf,
+            self.cpu.instr,
+            self.cpu.stack[0],
+        });
+
+        std.debug.print("\x1B[H", .{});
+        std.debug.print("{s}", .{buf});
+
+        self.threadEnded2 = true;
+    }
+
+    // layout: 1 CPU, 32 ROM (banked), 32 RAM, 10-bit SR connected to ROM 0,
+    //   Controller with input from ROM 0 and output to ROM 1
+    // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
+    //
+    // NOTE: when a chip needs to send data to another chip, place it in the
+    // if statement of the chip send the data,
+    // eg in .ROM:    `self.controller.signal = self.roms[0].io & 1`
+    fn sync_motherboard(self: *Motherboard, chip_type: ChipType, num: u8) void {
+        var bus: u4 = undefined;
+        const cmrom: u1 = self.cpu.cm;
+
+        if (chip_type == .CPU) {
+            bus = self.cpu.buffer;
+            // connects the decoder to the 3 MSB of cm-ram
+            self.decoder.in = @intCast(self.cpu.cmram >> 1);
+        } else if (chip_type == .ROM) {
+            // virtual ROM is 13-bit, with 12 being the standard area and 1 bit that can be flipped for banking
+            bus = self.roms[@as(u8, num) + (16 * @as(u8, self.bank))].buffer;
+            if (num == 0) {
+                // ROM 0 connects the controller output
+                self.controller.signal =     @truncate((self.roms[0].io & 1) >> 0);
+                self.shift_regs[0].data_in = @truncate((self.roms[0].io & 2) >> 1);
+                self.shift_regs[0].enable  = @truncate((self.roms[0].io & 4) >> 2);
+                self.shift_regs[0].clock   = @truncate((self.roms[0].io & 8) >> 3);
+            }
+            if (num == 2) {
+                // ROM 2 connects the display
+                self.display.signal =        @truncate((self.roms[2].io & 1) >> 0);
+                self.shift_regs[1].data_in = @truncate((self.roms[2].io & 2) >> 1);
+                self.shift_regs[1].enable  = @truncate((self.roms[2].io & 4) >> 2);
+                self.shift_regs[1].clock   = @truncate((self.roms[2].io & 8) >> 3);
+            }
+        } else if (chip_type == .RAM) {
+            bus = self.rams[num].buffer;
+            if (num == 5) {
+                // bit flip for banking
+                self.bank = @truncate(self.rams[5].io);
+            }
+        } else if (chip_type == .CONTROLLER) {
+            self.shift_regs[0].clock |= self.controller.clock;
+            self.shift_regs[0].data_in = self.controller.out;
+        } else if (chip_type == .SHIFT_REG) { // shift reg
+            if (num == 1) {
+                // ROM 1 controls the controller input
+                self.roms[1].io = @truncate(self.shift_regs[0].buffer);
+            }
+        } else if (chip_type == .DISPLAY) {
+            self.display.io = @truncate(self.shift_regs[1].buffer);
+        }
+
+        const chip_type_num: u8 = @intFromEnum(chip_type);
+        const chip_is_bus_wired: bool = (chip_type_num < 3);
+
+        // CPU
+        self.cpu.buffer = if (chip_is_bus_wired) bus else self.cpu.buffer;
+
+        // ROM
+        for (&self.roms) |*rom| {
+            rom.*.buffer = if (chip_is_bus_wired) bus else rom.*.buffer;
+            rom.*.cm = cmrom;
+        }
+
+        // RAM
+        for (&self.rams) |*ram| {
+            ram.*.buffer = if (chip_is_bus_wired) bus else ram.*.buffer;
+        }
+
+        // Decoder
+        for (self.rams[0x0..0x4]) |*ram| {
+            ram.*.cm = @truncate(self.cpu.cmram & 1);
+        }
+        var i: u8 = 4;
+        while (i < 32) {
+            for (self.rams[i..(i + 4)]) |*ram| {
+                ram.*.cm = self.decoder.out[@divFloor(i, 4)];
+            }
+            i += 4;
+        }
+
+        if (self.cpu.sync == 1 and self.cpu.step == TIMING.A1) {
+            for (&self.roms) |*rom| {
+                rom.*.step = TIMING.X3;
+            }
+            for (&self.rams) |*ram| {
+                ram.*.step = TIMING.X3;
+            }
+            self.cpu.sync = 0;
+        }
+    }
+
+    fn pause(self: *Motherboard) !void {
+        try self.print_state();
+
+        while (!zeys.isPressed(zeys.VK.VK_RETURN)) {
+            const toPrint: bool = self.print_controller_input_paused();
+            if (toPrint) {
+                try self.print_state();
+            }
+        }
+        while (zeys.isPressed(zeys.VK.VK_RETURN)) {
+            const toPrint: bool = self.print_controller_input_paused();
+            if (toPrint) {
+                try self.print_state();
+            }
+        }
+    }
+
+    pub fn tick(self: *Motherboard) !void {
+        self.cpu.tick();
+        self.sync_motherboard(.CPU, 0);
+
+        for (&self.roms) |*rom| {
+            rom.*.tick();
+            self.sync_motherboard(.ROM, rom.*.chip_num);
+        }
+        
+        var chipset: u4 = 0;
+        for (&self.rams) |*ram| {
+            if (ram.*.chip_num == 0) chipset += 1;
+            ram.*.tick();
+            self.sync_motherboard(.RAM, @as(u8, ram.*.chip_num) + @as(u8, chipset - 1) * 4);
+        }
+
+        self.decoder.tick();
+        self.sync_motherboard(.DECODER, 0);
+
+        self.controller.tick();
+        self.sync_motherboard(.CONTROLLER, 0);
+
+        var i: u4 = 0;
+        for (&self.shift_regs) |*sr| {
+            sr.*.tick();
+            self.sync_motherboard(.SHIFT_REG, i);
+            i += 1;
+        }
+        self.sync_motherboard(.SHIFT_REG, 0);
+
+        self.display.tick();
+        self.sync_motherboard(.DISPLAY, 0);
+
+        if (((self.step == 2 and Clock.p2 and self.cpu.reg[0xF] > 0) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
+            try self.pause();
+        } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
+            if (self.step == 1) {
+                try self.pause();
+            } else {
+                if (self.threadEnded) {
+                    self.threadEnded = false;
+                    const contThread: std.Thread = try std.Thread.spawn(.{}, print_controller_input, .{self});
+                    _ = contThread;
+                }
+                if (self.threadEnded2) {
+                    self.threadEnded2 = false;
+                    const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
+                    _ = debugThread;
+                }
+            }
+        }
+
+        Clock.p1 = false;
+        Clock.p2 = false;
+    }
+
+    pub fn init(filename: []u8) !*Motherboard {
+        const self: *Motherboard = try alloc.create(Motherboard);
+
+        // CPU INIT
+        self.r = 0;
+        self.cpu = try Intel4004.init();
+
+        // ROM INIT
+        var file = try std.fs.cwd().openFile(filename, .{});
+        defer file.close();
+        
+        var checkStr: [3]u8 = .{ 0, 0, 0 };
+        _ = try file.read(&checkStr);
+        if (!std.mem.eql(u8, &checkStr, "i44")) {
+            return error.NotI4004File;
+        }
+        try file.seekTo(0x10);
+
+        var i: u8 = 0;
+        while (i < 32) {
+            const readROM: []u8 = try alloc.alloc(u8, 0x100);
+            _ = try file.read(readROM);
+            var rom: [0x100]u8 = undefined;
+            romcopy.copyROM(&rom, readROM);
+            self.roms[i] = try Intel4001.init(@truncate(i), &rom);
+            i += 1;
+        }
+
+        // RAM INIT
+        i = 0;
+        while (i < self.rams.len) {
+            self.rams[i] = try Intel4002.init(@truncate(i));
+            i += 1;
+        }
+        self.bank = 0;
+
+        // DECODER INIT
+        self.decoder = try Intel3205.init();
+
+        // CONTROLLER INIT
+        self.controller = try Controller.init();
+
+        // SHIFT REG INIT
+        i = 0;
+        while (i < self.shift_regs.len) {
+            self.shift_regs[i] = try Intel4003.init();
+            i += 1;
+        }
+
+        // DISPLAY INIT
+        self.display = try Display.init();
+
+        // DEBUG INIT
+        self.threadEnded = true;
+        self.threadEnded2 = true;
+        self.isPressed = false;
+
+        return self;
+    }
+};
