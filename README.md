@@ -8,3 +8,5 @@ Build using `zig build`. The command arguments are `Accui4004.exe [filename].i44
 <img width="493" height="251" alt="image" src="https://github.com/user-attachments/assets/e2568228-c217-4d55-b19a-2ebdbbb2f970" />
 
 *Fibonacci.i44 running in Accui4004*
+# Make your own 4004 system!
+While at the moment it is cumbersome, no "chip" in this emulator requires another! Opening `motherboard.zig` and scrolling to the `sync_motherboard` function will allow you to edit the "wires" of the simulation.
