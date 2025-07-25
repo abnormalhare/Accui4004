@@ -31,10 +31,12 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     var zeys: *std.Build.Dependency = undefined;
-    zeys = b.dependency("Zeys", .{
-        .target = target,
-        .optimize = optimize,
-    });
+    if (builtin.target.os.tag == .windows) {
+        zeys = b.dependency("Zeys", .{
+            .target = target,
+            .optimize = optimize,
+        });
+    }
 
     const exe = b.addExecutable(.{
         .name = "Accui4004",
@@ -45,7 +47,9 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
 
-    exe.root_module.addImport("zeys", zeys.module("zeys"));
+    if (builtin.target.os.tag == .windows) {
+        exe.root_module.addImport("zeys", zeys.module("zeys"));
+    }
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
