@@ -1,6 +1,6 @@
 const std = @import("std");
 const alloc = @import("root.zig").alloc;
-const zeys = @import("zeys");
+const zeys = if (builtin.target.os.tag == .windows) @import("zeys") else @import("zeys.zig");
 const builtin = @import("builtin");
 const romcopy = @import("romcopy.zig");
 const reader = std.io.getStdIn().reader();
@@ -435,7 +435,7 @@ pub const Motherboard = struct {
         self.tty_file.close();
     }
 
-    pub fn linux_init(self: *Motherboard) void {
+    pub fn linux_init(self: *Motherboard) !void {
         self.tty_file = try std.fs.openFileAbsolute("/dev/tty", .{});
     }
 
@@ -499,7 +499,7 @@ pub const Motherboard = struct {
         self.isPressed = false;
 
         if (builtin.target.os.tag == .linux) {
-            self.linux_init();
+            try self.linux_init();
         }
 
         return self;
