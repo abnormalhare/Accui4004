@@ -69,7 +69,7 @@ pub const Intel4004 = struct {
                     self.stack[0], _ = @addWithOverflow(self.stack[0], 1);
                 },
                 TIMING.M2 => {
-                    if ((self.instr >> 4) == 0xE) self.cmram = 1;
+                    if ((self.instr >> 4) == 0xE) self.cmram = self.bank;
                 },
                 TIMING.X1 => {
                     self.cmram = 0;

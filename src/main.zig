@@ -42,24 +42,36 @@ const Computer = struct {
 
     fn print_controller_input(self: *Computer) void {
         if (builtin.target.os.tag == .windows) {
-            self.print_controller_input_windows();
+            _ = self.print_controller_input_windows();
+        }
+        self.threadEnded = true;
+    }
+
+    fn print_controller_input_paused(self: *Computer) bool {
+        if (builtin.target.os.tag == .windows) {
+            return self.print_controller_input_windows();
+        } else {
+            return false;
         }
     }
 
-    fn print_controller_input_windows(self: *Computer) void {
+    fn print_controller_input_windows(self: *Computer) bool {
         if (!self.isPressed) {
             if (zeys.isPressed(zeys.VK.VK_RIGHT)) {
                 if (self.r != 0x1F) self.r += 1 else self.r = 0;
                 self.isPressed = true;
+                return true;
             }
             if (zeys.isPressed(zeys.VK.VK_LEFT)) {
                 if (self.r != 0) self.r -= 1 else self.r = 0x1F;
                 self.isPressed = true;
+                return true;
             }
             if (zeys.isPressed(zeys.VK.VK_R)) {
                 self.isPressed = true;
                 self.print_type = ~self.print_type;
                 self.just_flipped_print_type = true;
+                return true;
             }
         } else {
             if (!zeys.isPressed(zeys.VK.VK_RIGHT) and !zeys.isPressed(zeys.VK.VK_LEFT) and !zeys.isPressed(zeys.VK.VK_R)) {
@@ -67,7 +79,7 @@ const Computer = struct {
             }
         }
 
-        self.threadEnded = true;
+        return false;
     }
 
     fn print_state(self: *Computer) !void {
@@ -89,10 +101,11 @@ const Computer = struct {
         var buf = try gpa_alloc.alloc(u8, 0);
         defer gpa_alloc.free(buf);
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "|| INSTR: 0x{X:0>2} || @ROM ({b}) 0x{X:0>3} || STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3}\n", .{
+        buf = try std.fmt.allocPrint(gpa_alloc, "-----------------------------------------------------------\n", .{});
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| INSTR: 0x{X:0>2} | @ROM 0x{X:0>4}    | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{ buf,
             self.cpu.instr,
-            self.bank,
-            self.cpu.stack[0],
+            @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12),
             self.cpu.stack[1],
             self.cpu.stack[2],
             self.cpu.stack[3],
@@ -100,68 +113,81 @@ const Computer = struct {
 
         var time = @intFromEnum(self.cpu.step);
         if (Clock.p2) time, _ = @subWithOverflow(time, 1);
+
+        const name: []const u8 = std.enums.tagName(TIMING, @enumFromInt(time)).?;
         buf = switch (self.step) {
             else => buf,
-            2 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}\n", .{buf, @as(TIMING, @enumFromInt(time))}),
-            3 => try std.fmt.allocPrint(gpa_alloc, "{s}> TIMING: {}, {s}\n", .{buf, @as(TIMING, @enumFromInt(time)), if (Clock.p1) "p1" else "p2"}),
+            2 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  |                |                          |\n", .{buf, name}),
+            3 => try std.fmt.allocPrint(gpa_alloc, "{s}| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{buf, name, if (Clock.p1) "p1" else "p2"}),
         };
 
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> ACC: 0x{X:0>1}  C: {}\n> SHIFT REGS: 0 {b:0>10} | 1 {b:0>10}\nCONT: [{X} {b}]->{b}\n> CM: {b:0>1} | {b:0>4} / {any}\n", .{ buf,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| REGS | ACC: 0x{X:0>1}  C: {b} | CONT: [{X} {b}]->{b} | CMROM: {b:0>1}       |\n", .{ buf,
             self.cpu.acc,
             @intFromBool(self.cpu.carry),
-            self.shift_regs[0].buffer,
-            self.shift_regs[1].buffer,
             self.controller.timing,
             self.controller.clock,
             self.controller.out,
             self.cpu.cm,
-            self.cpu.cmram,
-            self.decoder.out,
         });
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> 0 IO: {b:0>4} | 1 IO: {b:0>4} | 2 IO: {b:0>4}\n>", .{ buf,
-            self.roms[0].io,
-            self.roms[1].io,
-            self.roms[2].io,
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}|-----------------------|----------------| CMRAM: {b:0>4}    |\n", .{ buf,
+            self.cpu.cmram
         });
-        buf = try std.fmt.allocPrint(gpa_alloc, "{s}> RAM IO: {b:0>4}\n> REGS:\n >", .{ buf,
-            self.rams[5].io,
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------|\n", .{ buf,
+            self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3], 
         });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     |\n", .{ buf,
+            self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], 
+            self.shift_regs[0].buffer,
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    |\n", .{ buf,
+            self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], 
+            self.shift_regs[1].buffer,
+            self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7], 
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                |\n", .{ buf,
+            self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], 
+        });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}| ROM IO          | RAM IO          | RAM[{X:0>2}]             |\n", .{ buf, self.r });
 
         var i: u8 = 0;
-        while (i < 16) {
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s} 0x{X:0>1}", .{buf, self.cpu.reg[i]});
-            if ((i % 4) == 3 and i != 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n >", .{buf});
-            } else if (i == 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n> RAM {X}: \n > ", .{buf, self.r});
-            }
-            i += 1;
-        }
-
-        i = 0;
-        while (i < 16) {
-            const ii: u8 = i % 4;
-            const v: u8 = (i / 4) * 4;
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{ buf,
-                self.rams[self.r].ram[ii].data[v], self.rams[self.r].ram[ii].data[v + 1], self.rams[self.r].ram[ii].data[v + 2], self.rams[self.r].ram[ii].data[v + 3]
-            });
-
-            if (i % 4 == 3 and i != 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n > ", .{buf});
-            } else if (i == 15) {
-                buf = try std.fmt.allocPrint(gpa_alloc, "{s}\n\n > ", .{buf});
-            }
-
-            i += 1;
-        }
-
-        i = 0;
         while (i < 4) {
-            buf = try std.fmt.allocPrint(gpa_alloc, "{s}{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{ buf,
-                self.rams[self.r].ram[i].stat[0], self.rams[self.r].ram[i].stat[1], self.rams[self.r].ram[i].stat[2], self.rams[self.r].ram[i].stat[3]
+            const ii: u8 = i * 4;
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | ", .{buf,
+                self.roms[ii + 0].io,
+                self.roms[ii + 1].io,
+                self.roms[ii + 2].io,
+                self.roms[ii + 3].io,
+                self.rams[ii + 0].io,
+                self.rams[ii + 1].io,
+                self.rams[ii + 2].io,
+                self.rams[ii + 3].io,
             });
+            var j: u8 = 0;
+            while (j < 4) {
+                buf = try std.fmt.allocPrint(gpa_alloc, "{s}{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{ buf,
+                    self.rams[self.r].ram[j].data[ii + 0],
+                    self.rams[self.r].ram[j].data[ii + 1],
+                    self.rams[self.r].ram[j].data[ii + 2],
+                    self.rams[self.r].ram[j].data[ii + 3],
+                });
+                j += 1;
+            }
+
+            buf = try std.fmt.allocPrint(gpa_alloc, "{s}|\n", .{ buf });
+
             i += 1;
         }
+
+        buf = try std.fmt.allocPrint(gpa_alloc, "{s}-----------------------------------------------------------\n", .{ buf });
 
         std.debug.print("\x1B[H", .{});
         std.debug.print("{s}", .{buf});
@@ -199,7 +225,7 @@ const Computer = struct {
         self.threadEnded2 = true;
     }
 
-    fn sync_motherboard(self: *Computer, t: u3, num: u4) void {
+    fn sync_motherboard(self: *Computer, t: u3, num: u8) void {
         var bus: u4 = undefined;
         const cmrom: u1 = self.cpu.cm;
 
@@ -223,7 +249,7 @@ const Computer = struct {
         } else if (t == 2) { // rams
             bus = self.rams[num].buffer;
             if (num == 5) {
-                self.bank = @truncate(self.rams[5].io & 1);
+                self.bank = @truncate(self.rams[5].io);
             }
         } else if (t == 4) { // controller
             self.shift_regs[0].clock |= self.controller.clock;
@@ -274,13 +300,19 @@ const Computer = struct {
     }
 
     fn pause(self: *Computer) !void {
+        try self.print_state();
+
         while (!zeys.isPressed(zeys.VK.VK_RETURN)) {
-            self.print_controller_input();
-            try self.print_state();
+            const toPrint: bool = self.print_controller_input_paused();
+            if (toPrint) {
+                try self.print_state();
+            }
         }
         while (zeys.isPressed(zeys.VK.VK_RETURN)) {
-            self.print_controller_input();
-            try self.print_state();
+            const toPrint: bool = self.print_controller_input_paused();
+            if (toPrint) {
+                try self.print_state();
+            }
         }
     }
 
@@ -292,9 +324,12 @@ const Computer = struct {
             rom.*.tick();
             self.sync_motherboard(1, rom.*.chip_num);
         }
+        
+        var chipset: u4 = 0;
         for (&self.rams) |*ram| {
+            if (ram.*.chip_num == 0) chipset += 1;
             ram.*.tick();
-            self.sync_motherboard(2, ram.*.chip_num);
+            self.sync_motherboard(2, @as(u8, ram.*.chip_num) + @as(u8, chipset - 1) * 4);
         }
 
         self.decoder.tick();
@@ -314,24 +349,22 @@ const Computer = struct {
         self.display.tick();
         self.sync_motherboard(6, 0);
 
-        if (self.threadEnded) {
-            self.threadEnded = false;
-            const contThread: std.Thread = try std.Thread.spawn(.{}, print_controller_input, .{self});
-            _ = contThread;
-        }
-
-        if (((self.step == 2 and Clock.p2) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
-            try self.print_state();
+        if (((self.step == 2 and Clock.p2 and self.cpu.reg[0xF] > 0) or (self.step == 3 and (Clock.p1 or Clock.p2))) and !self.cpu.reset) {
             try self.pause();
         } else if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) {
-            if (self.threadEnded2) {
-                self.threadEnded2 = false;
-                const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
-                _ = debugThread;
-            }
-
             if (self.step == 1) {
                 try self.pause();
+            } else {
+                if (self.threadEnded) {
+                    self.threadEnded = false;
+                    const contThread: std.Thread = try std.Thread.spawn(.{}, print_controller_input, .{self});
+                    _ = contThread;
+                }
+                if (self.threadEnded2) {
+                    self.threadEnded2 = false;
+                    const debugThread: std.Thread = try std.Thread.spawn(.{}, print_state, .{self});
+                    _ = debugThread;
+                }
             }
         }
 

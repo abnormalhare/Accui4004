@@ -30,6 +30,8 @@ To use these in the assembler: ! is bit 0, A is bit 1, C is bit 2, and T is bit 
 Fetch Immediate. Sets register pair `R` to `DD`, typically used for commands that use register pairs to index ROM.
 ### 0x2O - `SRC R`
 Send Register Control. Sets CM-ROM pin and a CM-RAM pin, and sends register pair `R` to specify which ROM/RAM chip to send the command to.
+
+For a ROM, the first register is used to determine the chip number.  For a RAM, the first register is used to select the chip (high 2 bits) and the register (low 2 bits). The second register is used to select the character within the register.
 ### 0x3V - `FIN R` (2-cycle)
 Fetch Indirect. On the next instruction cycle, the high byte of the stack, as well as the register pair `0` is sent to the ROM. That data is stored in register pair `R`. Note: If `FIN` is stored on the last byte of the current ROM chip, data will be read from the *next* ROM chip as opposed to the current one. This is useful for using an entire chip (aside from 0x00) as data.
 ### 0x3O - `JIN R`

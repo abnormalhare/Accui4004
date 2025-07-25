@@ -14,7 +14,6 @@ pub const Intel4009 = struct {
 
     // latches
     data_in_buf: u8,
-    data_out_buf: u4,
     data_bus_buf: u4,
     io_control: u4,
     io_in: u4,
@@ -34,6 +33,8 @@ pub const Intel4009 = struct {
 
         if (Clock.p1) {
             switch (self.step) {
+                TIMING.M1 => { self.data_in_buf = self.data; self.buffer = @truncate(self.data >> 4); },
+                TIMING.M2 => self.buffer = @truncate(self.data >> 0),
             }
         } else if (Clock.p2) {
             switch (self.step) {
