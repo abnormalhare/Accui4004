@@ -1,0 +1,57 @@
+; Driver for communication between the controller
+; and the display, connected in their default locations
+
+; IMPORTANT: ensure you have at least 1 level of stack available before calling these!
+
+; INPUT: regs 4, 5, 6, 7
+; OUTPUT: reg 4, 5
+; TEMPORARIES: reg E, F. make sure to save these values elsewhere before calling these functions!
+
+; bool getControllerInput()
+820:
+    FIM 7 00 ; set RAM & ROM chip selection to 0
+    JMS 8F0  ; push data for more variable use
+    
+    FIM 7 00 ; Shift Reg (ROM 0) Port
+    FIM 6 18 ; E: what to output, F: inverted counter
+    JMS 839  ; call ShiftReg(in, inv_count)
+    FIM 6 8E
+    JMS 839
+
+    FIM 7 10 ; Controller Output port
+    JMS 07C
+
+    FIM 7 00
+    FIM 6 8C
+    JMS 839
+    BBL 0
+839:
+    LD E     ; load nibble to send
+    SRC 7    ; send to specified IO port
+    WRR      ; 
+    LDM 4    ; enable
+    SRC 7    ;
+    WRR      ; 
+    ISZ F 70 ; if the inverse counter is 0, return
+    BBL 0
+842:
+    SRC 7
+    RDR
+    XCH 4
+    BBL 0
+
+8F0:
+    XCH F
+    DCL
+    XCH F
+    SRC 7
+    WR0
+    LD C
+    SRC 7
+    WR1
+    LD D
+    SRC 7
+    WR2
+    BBL 0
+
+900:

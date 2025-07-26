@@ -27,7 +27,7 @@ pub fn main() !void {
     Clock.setTime = std.time.nanoTimestamp();
 
     if (argsIterator.next()) |run| {
-        comp.step = @as(u2, @intFromBool(std.mem.eql(u8, run, "step")));
+        comp.step  = @as(u2, @intFromBool(std.mem.eql(u8, run, "step")));
         comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "cycle_step"))) * 2;
         comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "subcycle_step"))) * 3;
     } else {
