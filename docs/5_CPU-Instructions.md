@@ -60,38 +60,70 @@ Load Immediate. Loads `D` into the accumulator.
 These are instructions that do not use data from the instruction itself.
 ### 0xEX - Communication Instructions
 These send data to the ROM/RAM after sending a `SRC` instruction.
+
 0xE0 - `WRM` | Write RAM Character. Sends the accumulator to the specified RAM character.
+
 0xE1 - `WMP` | Write RAM Port. Sends the accumulator to the RAM's output lines.
-0xE2 - `WRR` | Write ROM Port. Sends the accumulator to the ROM's I/O lines
+
+0xE2 - `WRR` | Write ROM Port. Sends the accumulator to the ROM's I/O lines.
+
 0xE3 - `WPM` | Write Program Memory. Sends the accumulator to the 4008/4009 to write data to RAM.
+
 0xE4 - `WR0` | Write RAM 0. Sends the accumulator to the specified RAM register's status 0.
+
 0xE5 - `WR1` | Write RAM 1. Sends the accumulator to the specified RAM register's status 1.
+
 0xE6 - `WR2` | Write RAM 2. Sends the accumulator to the specified RAM register's status 2.
+
 0xE7 - `WR3` | Write RAM 3. Sends the accumulator to the specified RAM register's status 3.
+
 0xE8 - `SBM` | Subtract with Borrow Memory. Subtracts the specified RAM's character from the accumulator with borrow (done within the CPU).
+
 0xE9 - `RDM` | Read RAM Character. Reads the specified RAM's character into the accumulator.
+
 0xEA - `RDR` | Read ROM Port. Reads the ROM's I/O lines into the accumulator.
+
 0xEB - `ADM` | Add with Carry Memory. Adds the specified RAM's character from the accumulator with borrow (done within the CPU).
+
 0xEC - `RD0` | Read RAM 0. Reads the specified RAM register's status 0 into the accumulator.
+
 0xED - `RD1` | Read RAM 1. Reads the specified RAM register's status 1 into the accumulator.
+
 0xEE - `RD2` | Read RAM 2. Reads the specified RAM register's status 2 into the accumulator.
+
 0xEF - `RD3` | Read RAM 3. Reads the specified RAM register's status 3 into the accumulator.
+
 ### 0xFX - Accumulator/Carry Commands
 All instructions in this section influence the accumulator internally (aside from one).
+
 0xF0 - `CLB` | Clear Both. Sets the accumulator and carry to 0.
+
 0xF1 - `CLC` | Clear Carry. Sets the carry to 0.
+
 0xF2 - `IAC` | Increment Accumulator. Increases the accumulator amount by 1.
+
 0xF3 - `CMC` | Complement Carry. Inverts the carry bit.
+
 0xF4 - `CMA` | Complement Accumulator. Inverts all accumulator bits.
+
 0xF5 - `RAL` | Rotate Left. Shifts the accumulator bits to the left by one. The carry puts its bit into the low bit of the accumulator and recieves the high bit. (ex: 0 1101 -> 1 1010 -> 1 0101)
+
 0xF6 - `RAR` | Rotate Right. Shifts the accumulator bits to the right by one. The carry puts its bit into the high bit of the accumulator and recieves the low bit. (ex: 0 1101 -> 1 0110 -> 0 1011)
+
 0xF7 - `TCC` | Transfer Carry to Accumulator. Sets the accumlator to 0 + carry, and clears carry.
+
 0xF8 - `DAC` | Decrement Accumulator. Decreases the accumulator amount by 1.
+
 0xF9 - `TCS` | Transfer Carry Subtract. Sets the accumulator to 9 + carry, and clears carry.
+
 0xFA - `STC` | Set Carry. Sets the carry to 1.
+
 0xFB - `DAA` | Decimal Adjust Accumulator. Adds 6 to the accumulator if it as a 5 bit number (including the carry) is greater than 9. (e.g. 0x0B -> 0x11). The hex reads as though it is in base 10.
+
 0xFC - `KBP` | Keyboard Process. If there is only one bit in the accumulator enabled, it sets the accumulator to the position of the bit from lowest to highest (e.g. 0b0100 -> 3, 0b1000 -> 4). Otherwise sets accumulator to 15 to signal an error.
-0xFD - `DCL` | Designate Command Line. The low 3 bits are used to determine which bank to use for CM-RAM signalling. This allows for 8 different sets of 4 RAM carts to be used. Those signals are:  
+
+0xFD - `DCL` | Designate Command Line. The low 3 bits are used to determine which bank to use for CM-RAM signalling. This allows for 8 different sets of 4 RAM carts to be used. Those signals are:
+
 0b000 -> CM-RAM 0  
 0b001 -> CM-RAM 1  
 0b010 -> CM-RAM 2  
