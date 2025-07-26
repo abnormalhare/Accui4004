@@ -138,4 +138,4 @@ Even though all values are automatically considered, hexadecimal, `$C`, `#$C`, a
 Jumping to certain addresses in the assembler is admittedly confusing because I am dumb. When jumping to an address, say, running `JUN 020`, you can write `020:` to place code there. As long as this is at or greater than the program size up to this point, there is no issue, but if it *isn't*, the assembler will error.
 If you're on Windows, a complimentary `assemble.bat` comes with the repo that quickly assembles a given .i4a file and moves it into the base repo for easy running. Happy coding!
 
-[Prev](2_Intel-4002.md) | [Next](6_File-Format.md)
+[Prev](5_Motherboard.md) | [Next](7_File-Format.md)
