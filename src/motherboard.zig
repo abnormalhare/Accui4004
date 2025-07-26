@@ -45,6 +45,7 @@ pub const Motherboard = struct {
 
     // linux variables
     tty_file: std.fs.File,
+    keysPressed: [8]bool,
 
     fn get_controller_input(self: *Motherboard) void {
         if (builtin.target.os.tag == .windows) {
@@ -119,9 +120,24 @@ pub const Motherboard = struct {
 
             if (is_non_alphanum_key) {
                 is_non_alphanum_key2 = (key == '[');
+            } else {
+                is_non_alphanum_key = (key == 27);
+                if (is_non_alphanum_key) continue;
+
+                for (&self.keysPressed) |*keyPressed| {
+                    keyPressed.* = false;
+                }
+
+                if (key == 'w') self.keysPressed[0] = true;
+                if (key == 'a') self.keysPressed[1] = true;
+                if (key == 's') self.keysPressed[2] = true;
+                if (key == 'd') self.keysPressed[3] = true;
+                if (key == 'e') self.keysPressed[4] = true;
+                if (key == 'q') self.keysPressed[5] = true;
+                if (key == ';') self.keysPressed[6] = true;
+                if (key == '\'') self.keysPressed[7] = true;
             }
 
-            is_non_alphanum_key = (key == 27);
         }
         
         _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &old_settings);
@@ -456,6 +472,10 @@ pub const Motherboard = struct {
 
     pub fn linux_init(self: *Motherboard) !void {
         self.tty_file = try std.fs.openFileAbsolute("/dev/tty", .{});
+
+        for (&self.keysPressed) |*keyPressed| {
+            keyPressed.* = false;
+        }
     }
 
     pub fn init(filename: []u8) !*Motherboard {
