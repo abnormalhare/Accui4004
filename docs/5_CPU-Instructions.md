@@ -1,5 +1,5 @@
 # CPU Instructions
-This will get you acquainted with all the commands that are able to be run by the Intel 4004. All 2-byte commands are 2-cycle as well, aside from 2O. All data sent happens on timings X2 and X3.
+This will get you acquainted with all the commands that are able to be run by the Intel 4004. All 2-byte commands and SRC are 2-cycle. All data sent from the CPU happens on timings X2 and X3.
 This document will also help with writing programs for the disassembler
 ## Legend
 `X` - any number  
