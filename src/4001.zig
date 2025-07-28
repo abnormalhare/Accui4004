@@ -9,12 +9,14 @@ const incStep = @import("enum.zig").incStep;
 pub const Intel4001 = struct {
     chip_num: u4,
     rom: [0x100]u8,
+
     is_chip: bool,
     is_io_chip: bool,
+    execute: bool,
 
     buffer: u4,
     io: u4,
-    exec: u4,
+    instr: u4,
     cl: bool,
     sync: u1,
     cm: u1,
@@ -36,11 +38,11 @@ pub const Intel4001 = struct {
     }
 
     fn interpret(self: *Intel4001) void {
-        self.is_io_chip = false;
+        if (!self.execute) return;
 
-        if (self.exec == 0x2) {
+        if (self.instr == 0x2) {
             self.io = self.buffer;
-        } else if (self.exec == 0xA) {
+        } else if (self.instr == 0xA) {
             self.buffer = self.io;
         }
     }
@@ -75,7 +77,7 @@ pub const Intel4001 = struct {
     }
 
     fn checkROM(self: *Intel4001, num: u4) void {
-        self.is_chip = (self.chip_num == num);
+        self.is_chip = ((self.chip_num == num) and (self.cm == 1));
     }
 
     fn checkIO(self: *Intel4001, num: u4) void {
@@ -83,7 +85,7 @@ pub const Intel4001 = struct {
     }
 
     fn setExec(self: *Intel4001, num: u4) void {
-        self.exec = num;
+        self.instr = num;
     }
 
     fn getData(self: *Intel4001, step: u8) void {
@@ -91,8 +93,9 @@ pub const Intel4001 = struct {
 
         if (step == 0) {
             self.buffer = @truncate(self.rom[@as(u32, self.address)] >> 4);
-        } else {
+        } else if (step == 1) {
             self.buffer = @truncate(self.rom[@as(u32, self.address)] >> 0);
+            self.execute = (self.buffer == 0xE);
         }
     }
 
@@ -104,6 +107,7 @@ pub const Intel4001 = struct {
         self.address = 0;
         self.step = TIMING.A1;
         self.io = 0;
+        self.execute = false;
     }
     fn clear(self: *Intel4001) void {
         self.io = 0;

@@ -159,7 +159,7 @@ pub const Motherboard = struct {
         defer list.deinit();
 
         const writer = list.writer();
-        try writer.print("-----------------------------------------------------------\n", .{});
+        try writer.print("\n-----------------------------------------------------------\n", .{});
 
         try writer.print("| INSTR: 0x{X:0>2} |   ROM 0x{X:0>4}   | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{
             self.cpu.instr,
@@ -232,7 +232,7 @@ pub const Motherboard = struct {
         });
 
         var i: u8 = 0;
-        while (i < 4) {
+        while (i < 8) {
             const ii: u8 = i * 4;
             try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} | ", .{
                 self.roms[ii + 0].io,
@@ -246,12 +246,24 @@ pub const Motherboard = struct {
             });
             var j: u8 = 0;
             while (j < 4) {
-                try writer.print("{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{
-                    self.rams[self.r].ram[j].data[ii + 0],
-                    self.rams[self.r].ram[j].data[ii + 1],
-                    self.rams[self.r].ram[j].data[ii + 2],
-                    self.rams[self.r].ram[j].data[ii + 3],
-                });
+                if (i < 4) {
+                    try writer.print("{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{
+                        self.rams[self.r].ram[j].data[ii + 0],
+                        self.rams[self.r].ram[j].data[ii + 1],
+                        self.rams[self.r].ram[j].data[ii + 2],
+                        self.rams[self.r].ram[j].data[ii + 3],
+                    });
+                } else if (i == 5) {
+                    try writer.print("{X:0>1}{X:0>1}{X:0>1}{X:0>1} ", .{
+                        self.rams[self.r].ram[j].stat[0],
+                        self.rams[self.r].ram[j].stat[1],
+                        self.rams[self.r].ram[j].stat[2],
+                        self.rams[self.r].ram[j].stat[3],
+                    });
+                } else {
+                    try writer.print("                    ", .{});
+                    break;
+                }
                 j += 1;
             }
 
@@ -271,7 +283,7 @@ pub const Motherboard = struct {
                 },
                 2 => {
                     try writer.print("|-'----------'\n", .{});
-                }
+                },
             }
 
             if (i != 2)
@@ -345,9 +357,15 @@ pub const Motherboard = struct {
         self.cpu.buffer = if (chip_is_bus_wired) bus else self.cpu.buffer;
 
         // ROM
+        var i: u8 = 0;
         for (&self.roms) |*rom| {
             rom.*.buffer = if (chip_is_bus_wired) bus else rom.*.buffer;
-            rom.*.cm = cmrom;
+            if (i >= 16) {
+                rom.*.cm = cmrom & self.bank;
+            } else {
+                rom.*.cm = cmrom & ~self.bank;
+            }
+            i += 1;
         }
 
         // RAM
@@ -359,7 +377,8 @@ pub const Motherboard = struct {
         for (self.rams[0x0..0x4]) |*ram| {
             ram.*.cm = @truncate(self.cpu.cmram & 1);
         }
-        var i: u8 = 4;
+        
+        i = 4;
         while (i < 32) {
             for (self.rams[i..(i + 4)]) |*ram| {
                 ram.*.cm = self.decoder.out[@divFloor(i, 4)];

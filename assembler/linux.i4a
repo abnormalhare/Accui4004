@@ -1,11 +1,13 @@
 ; dissasembled code from the Linux/4004 project from Dmitry
 ; find it here at https://dmitry.gr/?r=05.Projects&proj=35.%20Linux4004
+
 FIM 2 98
 JUN B74
 
 007:
 JUN 035
 
+; Jump to ROM Bank 1
 009:
 LDM 1
 DCL
@@ -13,6 +15,7 @@ SRC 6
 WMP
 BBL 0
 
+; Jump to ROM Bank 1... multiple times?
 00E:
 LDM 1
 DCL
@@ -56,6 +59,40 @@ FIM 6 00
 JMS 01E
 LDM 2
 DCL
+FIM 0 07
+
+03D: ; <- loop from $04B (line 79)
+SRC 0
+LD 0
+IAC
+WR0
+LDM 1
+WR1
+LDM 8
+WRM
+LD 0
+DAC
+WR2
+TCC
+RAL
+WR3
+ISZ 0 3D
+
+04D:
+SRC 0
+LDM 0
+WR2
+LDM 1
+DCL
+FIM 0 3F
+SRC 0
+RD1
+XCH 0
+LDM 2
+DCL
+SRC 0
+LDM 0
+WR1
 
 06C:
 LDM 1

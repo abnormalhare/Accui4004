@@ -19,6 +19,7 @@ pub const Intel4002 = struct {
     cm: u1,
     reset: bool,
     is_chip: bool,
+    execute: bool,
 
     data: u4,
     char: u2,
@@ -37,6 +38,9 @@ pub const Intel4002 = struct {
     }
 
     fn interpret(self: *Intel4002) void {
+        if (!self.execute) return;
+        self.execute = false;
+
         switch (self.instr) {
             0 => {
                 self.ram[self.char].data[self.data] = self.buffer;
@@ -55,8 +59,6 @@ pub const Intel4002 = struct {
             },
             else => {},
         }
-
-        self.is_chip = false;
     }
 
     pub fn tick(self: *Intel4002) void {
@@ -69,15 +71,12 @@ pub const Intel4002 = struct {
 
         if (Clock.p2) {
             switch (self.step) {
-                TIMING.M2 => {
-                    if (self.cm == 1 and self.is_chip) {
-                        self.instr = self.buffer;
-                    }
-                },
+                TIMING.M2 => if (self.cm == 1) { self.instr = self.buffer; self.execute = true; },
                 TIMING.X2 => {
                     if (self.cm == 1) {
                         self.checkRAM(self.buffer);
-                    } else if (self.is_chip) {
+                    }
+                    if (self.is_chip) {
                         self.interpret();
                     }
                 },
@@ -115,6 +114,7 @@ pub const Intel4002 = struct {
         self.sync = 0;
         self.cm = 0;
         self.instr = 0;
+        self.execute = false;
         self.step = TIMING.X3;
     }
 };
