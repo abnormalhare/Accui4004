@@ -51,15 +51,15 @@ LDM 1
 DCL
 SRC 6
 WMP
-FIM 6 00
+FIM 6 00 ; Write to RAM 4 I/O0
 LDM 1
 SRC 6
 WMP
 FIM 6 00
 JMS 01E
-LDM 2
+LDM 2    ; RAM bank 2 (RAMs 8, 9, A, B)
 DCL
-FIM 0 07
+FIM 0 07 ; RAM chip 8 reg 0 char 7
 
 03D: ; <- loop from $04B (line 79)
 SRC 0
@@ -93,6 +93,20 @@ DCL
 SRC 0
 LDM 0
 WR1
+LDM 0
+DCL
+FIM 0 08
+SRC 0
+LDM 3
+WRM
+JUN 7F6
+
+065:
+LDM 1
+DCL
+FIM 1 08
+LDM 4
+JMS 4B9
 
 06C:
 LDM 1
@@ -100,6 +114,19 @@ DCL
 FIM 1 00
 FIM 2 08
 JMS 4DB
+FIM 1 08
+LDM 4
+JMS 4B9
+
+079:
+LDM 0
+WR0
+FIM 1 5F ; RAM Chip 1 (unbanked) reg 1, char F
+SRC 1
+RD0      ; increment reg 1 status 0
+IAC
+WR0
+JCN !A E5
 
 1B9:
 FIM 3 01

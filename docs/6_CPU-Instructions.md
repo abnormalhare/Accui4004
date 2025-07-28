@@ -25,7 +25,7 @@ Bit 1: Jumps if the accumulator is 0
 Bit 2: Jumps if the carry is 1
 Bit 3: Jumps if TEST pin is 0
 If the condition succeeds, the program counter's mid and lower nibbles are set to `A`. Note: If `JCN` is stored on the last byte of the current ROM chip, the address will be on the *next* ROM chip as opposed to the current one.
-To use these in the assembler: ! is bit 0, A is bit 1, C is bit 2, and T is bit 3. Any order is allowed, but this order is preferable. For example, to check if the carry is 0, write `JCN !C [A]`. To use all bits, you would write `JCN !ACT [A]`.
+To use these in the assembler: ! is bit 3, A is bit 2, C is bit 1, and T is bit 0. Any order is allowed, but this order is preferable. For example, to check if the carry is 0, write `JCN !C [A]`. To use all bits, you would write `JCN !ACT [A]`.
 ### 0x2V - `FIM R DD` (2-byte)
 Fetch Immediate. Sets register pair `R` to `DD`, typically used for commands that use register pairs to index ROM.
 ### 0x2O - `SRC R`
