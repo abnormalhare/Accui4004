@@ -8,15 +8,18 @@ JUN B74
 JUN 035
 
 ; Jump to ROM Bank 1 once
+; (outside emu loop?)
 009:
     LDM 1
     DCL
     SRC 6
     WMP
     BBL 0
+; END OF FUNC 009
 
 ; Jump to ROM Bank 1 multiple times
 ; programs jump at any point to do this N times
+; Ends (jumps unconditionally) @ 073 (line 126)
 00E: ; jump 8 times
     LDM 1
     DCL
@@ -62,6 +65,7 @@ JUN 035
     NOP
     NOP
 
+02C: ; base loop
     LDM 1
     DCL
     SRC 6
@@ -78,7 +82,7 @@ JUN 035
     DCL
     FIM 0 07 ; RAM chip 8 reg 0 char 7, setup for loop
 
-    03D: ; <- loop from $04B (line 79)
+    03D:
         SRC 0
         LD 0
         IAC
@@ -121,6 +125,7 @@ JUN 035
     WRM
 
     JUN 7F6
+; END OF FUNC 00E
 
 065:
     LDM 1
@@ -233,6 +238,44 @@ JUN 035
 
     FIM 6 00
     JMS 02C
+    JCN !C E3
+
+    FIM 1 90
+    SRC 1
+    LD 1
+    WR1
+    LD 0
+    WR0
+    FIM 0 B0
+    SRC 0
+    LDM 8
+    WR2
+    JMS E3A
+    JUN 0E3
+; END OF FUNC 065
+
+0E3:
+    JMS 6AF
+  0E5:
+    FIM 2 00
+    SRC 2
+    RD1
+    JCN A EF
+
+    FIM 0 00
+    JUN 3C6
+
+  0EF:
+    FIM 1 A8
+    JMS 4DB
+    LDM 2
+    XCH B
+    FIM 4 DD
+    JMS 9DC
+    ; Incorrect Opcode 03!! WHAT? Is this just NOP?
+    NOP
+    JUN 180
+; END OF FUNC @ 0E3
 
 1B9:
 FIM 3 01
