@@ -42,15 +42,7 @@ def interpret(file, line: str, linenum: int) -> bytes | int:
         instruction = line[index]
         index += 1
     
-    if instruction == "NOP":
-        if len(line) > 1:
-            cnt: int = get_hex(line[index], linenum)
-            if cnt == -1: return -1
-
-            for i in range(cnt):
-                ret += write(file, 0)
-        else:
-            ret += write(file, 0)
+    if instruction == "NOP": ret += write(file, 0)
     elif instruction == "JCN":
         w: int = 0x10
         cond: str = line[index]
@@ -152,9 +144,12 @@ def interpret(file, line: str, linenum: int) -> bytes | int:
         return -1
 
     return ret
-        
+
+linenum = 0   
 
 def run(filename: str) -> None:
+    global linenum
+
     fn_noext: str = filename.split('.')[0]
     if '.i4a' not in filename: filename += '.i4a'
     f = open(filename, 'r')
@@ -167,6 +162,7 @@ def run(filename: str) -> None:
 
     for n, line in enumerate(f.readlines()):
         line = line[:-1] if '\n' in line else line
+        linenum = n+1
         temp = interpret(g, line, n+1)
         if isinstance(temp, int):
             break
@@ -187,4 +183,4 @@ if __name__ == "__main__":
     except FileNotFoundError:
         print("ERROR: File not found")
     except Exception as E:
-        print(E)
+        print(E, f"@ line {linenum}")
