@@ -12,13 +12,15 @@ pub fn main() !void {
     defer argsIterator.deinit();
 
     _ = argsIterator.next();
-    
+
     var filename: []u8 = undefined;
     defer alloc.free(filename);
+
     if (argsIterator.next()) |path| {
         filename = try alloc.alloc(u8, path.len);
         @memcpy(filename, path);
     } else {
+        filename = try alloc.alloc(u8, 0);
         std.debug.print("Command Usage: [emu].exe [filename].i44 (step|cycle_step|subcycle_step)\n", .{});
         return;
     }
@@ -27,7 +29,7 @@ pub fn main() !void {
     Clock.setTime = std.time.nanoTimestamp();
 
     if (argsIterator.next()) |run| {
-        comp.step  = @as(u2, @intFromBool(std.mem.eql(u8, run, "step")));
+        comp.step = @as(u2, @intFromBool(std.mem.eql(u8, run, "step")));
         comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "cycle_step"))) * 2;
         comp.step += @as(u2, @intFromBool(std.mem.eql(u8, run, "subcycle_step"))) * 3;
     } else {
