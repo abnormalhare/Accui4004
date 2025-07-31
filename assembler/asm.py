@@ -137,8 +137,7 @@ def interpret(file, line: str, linenum: int) -> bytes | int:
         val: int = get_hex(instruction[:-1], linenum)
         if prg_size > val:
             print(f"ERROR: {val} @ {linenum} is earlier than expected. Program @ {prg_size}")
-        while prg_size < val:
-            ret += write(file, 0)
+        ret += b'\0' * (val - prg_size) # write(file, *([0x00] * (val - prg_size)))
     else:
         print(f"ERROR: incorrect opcode '{instruction}' @ {linenum}")
         return -1

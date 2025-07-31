@@ -17,10 +17,7 @@ const Display = @import("display.zig").Display;
 const TIMING = @import("enum.zig").TIMING;
 const Clock = @import("4801.zig");
 
-const ChipType = enum(u8) {
-    CPU, ROM, RAM, 
-    DECODER, CONTROLLER, SHIFT_REG, DISPLAY
-};
+const ChipType = enum(u8) { CPU, ROM, RAM, DECODER, CONTROLLER, SHIFT_REG, DISPLAY };
 
 pub const Motherboard = struct {
     // Simulation variables
@@ -97,7 +94,7 @@ pub const Motherboard = struct {
         var new_settings: linux.termios = old_settings;
         new_settings.lflag.ICANON = false;
         new_settings.lflag.ECHO = false;
-        
+
         _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &new_settings);
 
         var is_non_alphanum_key: bool = false;
@@ -137,9 +134,8 @@ pub const Motherboard = struct {
                 if (key == ';') self.keysPressed[6] = true;
                 if (key == '\'') self.keysPressed[7] = true;
             }
-
         }
-        
+
         _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &old_settings);
 
         return false;
@@ -161,13 +157,7 @@ pub const Motherboard = struct {
         const writer = list.writer();
         try writer.print("\n-----------------------------------------------------------\n", .{});
 
-        try writer.print("| INSTR: 0x{X:0>2} |   ROM 0x{X:0>4}   | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{
-            self.cpu.instr,
-            @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12),
-            self.cpu.stack[1],
-            self.cpu.stack[2],
-            self.cpu.stack[3]
-        });
+        try writer.print("| INSTR: 0x{X:0>2} |   ROM 0x{X:0>4}   | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{ self.cpu.instr, @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12), self.cpu.stack[1], self.cpu.stack[2], self.cpu.stack[3] });
 
         var time = @intFromEnum(self.cpu.step);
         if (Clock.p2) time, _ = @subWithOverflow(time, 1);
@@ -176,7 +166,7 @@ pub const Motherboard = struct {
         switch (self.step) {
             else => {},
             2 => try writer.print("| TIMING: {s}  |                |                          |\n", .{name}),
-            3 => try writer.print("| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{name, if (Clock.p1) "p1" else "p2"}),
+            3 => try writer.print("| TIMING: {s}  | SUBCYCLE: {s}   |                          |\n", .{ name, if (Clock.p1) "p1" else "p2" }),
         }
 
         try writer.print("|---------------------------------------------------------|-,----------,\n", .{});
@@ -189,47 +179,19 @@ pub const Motherboard = struct {
             self.controller.out,
             self.cpu.cm,
         });
-        try writer.print("|-----------------------|----------------| CMRAM: {b:0>4}    | |----------|\n", .{
-            self.cpu.cmram
-        });
+        try writer.print("|-----------------------|----------------| CMRAM: {b:0>4}    | |----------|\n", .{self.cpu.cmram});
 
-        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
-            self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3],
-            self.display.disp[0][0], self.display.disp[0][1], self.display.disp[0][2], self.display.disp[0][3],
-            self.display.disp[0][4], self.display.disp[0][5], self.display.disp[0][6], self.display.disp[0][7]
-        });
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3], self.display.disp[0][0], self.display.disp[0][1], self.display.disp[0][2], self.display.disp[0][3], self.display.disp[0][4], self.display.disp[0][5], self.display.disp[0][6], self.display.disp[0][7] });
 
-        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
-            self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], 
-            self.shift_regs[0].buffer,
-            self.display.disp[1][0], self.display.disp[1][1], self.display.disp[1][2], self.display.disp[1][3],
-            self.display.disp[1][4], self.display.disp[1][5], self.display.disp[1][6], self.display.disp[1][7]
-        });
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], self.shift_regs[0].buffer, self.display.disp[1][0], self.display.disp[1][1], self.display.disp[1][2], self.display.disp[1][3], self.display.disp[1][4], self.display.disp[1][5], self.display.disp[1][6], self.display.disp[1][7] });
 
-        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
-            self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], 
-            self.shift_regs[1].buffer,
-            self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7],
-            self.display.disp[2][0], self.display.disp[2][1], self.display.disp[2][2], self.display.disp[2][3],
-            self.display.disp[2][4], self.display.disp[2][5], self.display.disp[2][6], self.display.disp[2][7]
-        });
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], self.shift_regs[1].buffer, self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7], self.display.disp[2][0], self.display.disp[2][1], self.display.disp[2][2], self.display.disp[2][3], self.display.disp[2][4], self.display.disp[2][5], self.display.disp[2][6], self.display.disp[2][7] });
 
-        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
-            self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], 
-            self.display.disp[3][0], self.display.disp[3][1], self.display.disp[3][2], self.display.disp[3][3],
-            self.display.disp[3][4], self.display.disp[3][5], self.display.disp[3][6], self.display.disp[3][7]
-        });
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], self.display.disp[3][0], self.display.disp[3][1], self.display.disp[3][2], self.display.disp[3][3], self.display.disp[3][4], self.display.disp[3][5], self.display.disp[3][6], self.display.disp[3][7] });
 
-        try writer.print("|---------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
-            self.display.disp[4][0], self.display.disp[4][1], self.display.disp[4][2], self.display.disp[4][3],
-            self.display.disp[4][4], self.display.disp[4][5], self.display.disp[4][6], self.display.disp[4][7]
-        });
+        try writer.print("|---------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.display.disp[4][0], self.display.disp[4][1], self.display.disp[4][2], self.display.disp[4][3], self.display.disp[4][4], self.display.disp[4][5], self.display.disp[4][6], self.display.disp[4][7] });
 
-        try writer.print("| ROM IO          | RAM IO          | RAM[{X:0>2}]             | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{
-            self.r,
-            self.display.disp[5][0], self.display.disp[5][1], self.display.disp[5][2], self.display.disp[5][3],
-            self.display.disp[5][4], self.display.disp[5][5], self.display.disp[5][6], self.display.disp[5][7]
-        });
+        try writer.print("| ROM IO          | RAM IO          | RAM[{X:0>2}]             | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.r, self.display.disp[5][0], self.display.disp[5][1], self.display.disp[5][2], self.display.disp[5][3], self.display.disp[5][4], self.display.disp[5][5], self.display.disp[5][6], self.display.disp[5][7] });
 
         var i: u8 = 0;
         while (i < 8) {
@@ -270,16 +232,10 @@ pub const Motherboard = struct {
             switch (i) {
                 else => {},
                 0 => {
-                    try writer.print("| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{
-                        self.display.disp[6][0], self.display.disp[6][1], self.display.disp[6][2], self.display.disp[6][3],
-                        self.display.disp[6][4], self.display.disp[6][5], self.display.disp[6][6], self.display.disp[6][7]
-                    });
+                    try writer.print("| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{ self.display.disp[6][0], self.display.disp[6][1], self.display.disp[6][2], self.display.disp[6][3], self.display.disp[6][4], self.display.disp[6][5], self.display.disp[6][6], self.display.disp[6][7] });
                 },
                 1 => {
-                    try writer.print("| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{
-                        self.display.disp[7][0], self.display.disp[7][1], self.display.disp[7][2], self.display.disp[7][3],
-                        self.display.disp[7][4], self.display.disp[7][5], self.display.disp[7][6], self.display.disp[7][7]
-                    });
+                    try writer.print("| | {b}{b}{b}{b}{b}{b}{b}{b} ", .{ self.display.disp[7][0], self.display.disp[7][1], self.display.disp[7][2], self.display.disp[7][3], self.display.disp[7][4], self.display.disp[7][5], self.display.disp[7][6], self.display.disp[7][7] });
                 },
                 2 => {
                     try writer.print("|-'----------'\n", .{});
@@ -302,6 +258,8 @@ pub const Motherboard = struct {
 
     // layout: 1 CPU, 32 ROM (banked), 32 RAM, 10-bit SR connected to ROM 0,
     //   Controller with input from ROM 0 and output to ROM 1
+    //   Display with input from ROM 2
+    //   bank with input from RAM 5
     // RAM connected via 3205 decoder of CM-RAM 1 to CM-RAM 3
     //
     // NOTE: when a chip needs to send data to another chip, place it in the
@@ -320,17 +278,17 @@ pub const Motherboard = struct {
             bus = self.roms[@as(u8, num) + (16 * @as(u8, self.bank))].buffer;
             if (num == 0) {
                 // ROM 0 connects the controller output
-                self.controller.signal =     @truncate((self.roms[0].io & 1) >> 0);
+                self.controller.signal = @truncate((self.roms[0].io & 1) >> 0);
                 self.shift_regs[0].data_in = @truncate((self.roms[0].io & 2) >> 1);
-                self.shift_regs[0].enable  = @truncate((self.roms[0].io & 4) >> 2);
-                self.shift_regs[0].clock   = @truncate((self.roms[0].io & 8) >> 3);
+                self.shift_regs[0].enable = @truncate((self.roms[0].io & 4) >> 2);
+                self.shift_regs[0].clock = @truncate((self.roms[0].io & 8) >> 3);
             }
             if (num == 2) {
                 // ROM 2 connects the display
-                self.display.signal =        @truncate((self.roms[2].io & 1) >> 0);
+                self.display.signal = @truncate((self.roms[2].io & 1) >> 0);
                 self.shift_regs[1].data_in = @truncate((self.roms[2].io & 2) >> 1);
-                self.shift_regs[1].enable  = @truncate((self.roms[2].io & 4) >> 2);
-                self.shift_regs[1].clock   = @truncate((self.roms[2].io & 8) >> 3);
+                self.shift_regs[1].enable = @truncate((self.roms[2].io & 4) >> 2);
+                self.shift_regs[1].clock = @truncate((self.roms[2].io & 8) >> 3);
             }
         } else if (chip_type == .RAM) {
             bus = self.rams[num].buffer;
@@ -377,7 +335,7 @@ pub const Motherboard = struct {
         for (self.rams[0x0..0x4]) |*ram| {
             ram.*.cm = @truncate(self.cpu.cmram & 1);
         }
-        
+
         i = 4;
         while (i < 32) {
             for (self.rams[i..(i + 4)]) |*ram| {
@@ -441,7 +399,7 @@ pub const Motherboard = struct {
             rom.*.tick();
             self.sync_motherboard(.ROM, rom.*.chip_num);
         }
-        
+
         var chipset: u4 = 0;
         for (&self.rams) |*ram| {
             if (ram.*.chip_num == 0) chipset += 1;
@@ -465,12 +423,12 @@ pub const Motherboard = struct {
 
         self.display.tick();
         self.sync_motherboard(.DISPLAY, 0);
-        
+
         switch (self.step) {
             0 => if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.check_threads(),
             1 => if (Clock.p2 and self.cpu.step == TIMING.A1 and !self.cpu.reset) try self.pause(),
             2 => if (self.step == 2 and Clock.p2 and !self.cpu.reset) try self.pause(),
-            3 => if (self.step == 3 and (Clock.p1 or Clock.p2) and !self.cpu.reset) try self.pause()
+            3 => if (self.step == 3 and (Clock.p1 or Clock.p2) and !self.cpu.reset) try self.pause(),
         }
 
         Clock.p1 = false;
@@ -509,7 +467,7 @@ pub const Motherboard = struct {
         // ROM INIT
         var file = try std.fs.cwd().openFile(filename, .{});
         defer file.close();
-        
+
         var checkStr: [3]u8 = .{ 0, 0, 0 };
         _ = try file.read(&checkStr);
         if (!std.mem.eql(u8, &checkStr, "i44")) {
@@ -521,7 +479,7 @@ pub const Motherboard = struct {
         while (i < 32) {
             const readROM: []u8 = try alloc.alloc(u8, 0x100);
             defer alloc.free(readROM);
-            
+
             _ = try file.read(readROM);
             var rom: [0x100]u8 = undefined;
             romcopy.copyROM(&rom, readROM);
