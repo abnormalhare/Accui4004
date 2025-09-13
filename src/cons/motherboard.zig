@@ -1,6 +1,6 @@
 const std = @import("std");
 const alloc = @import("../main.zig").alloc;
-const zeys = if (builtin.target.os.tag == .windows) @import("zeys") else @import("zeys.zig");
+const zeys = @import("zeys"); // if (builtin.target.os.tag == .windows) @import("zeys") else @import("zeys.zig");
 const builtin = @import("builtin");
 
 const Intel4001 = @import("../chips/4001.zig").Intel4001;
