@@ -1,8 +1,8 @@
 const std = @import("std");
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 const zeys = @import("zeys");
 const builtin = @import("builtin");
-const main = @import("main.zig");
+const main = @import("../main.zig");
 
 // this is a theoretical external device! there is no equivelant to this in real life!
 pub const Controller = struct {

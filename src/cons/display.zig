@@ -1,5 +1,5 @@
 const std = @import("std");
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 
 pub const Display = struct {
     io: u8,

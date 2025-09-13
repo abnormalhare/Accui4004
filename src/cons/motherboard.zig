@@ -1,23 +1,31 @@
 const std = @import("std");
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 const zeys = if (builtin.target.os.tag == .windows) @import("zeys") else @import("zeys.zig");
 const builtin = @import("builtin");
-const romcopy = @import("romcopy.zig");
-const reader = std.io.getStdIn().reader();
 
-const Intel4001 = @import("4001.zig").Intel4001;
-const Intel4002 = @import("4002.zig").Intel4002;
-const Intel4003 = @import("4003.zig").Intel4003;
-const Intel4004 = @import("4004.zig").Intel4004;
-const Intel3205 = @import("3205.zig").Intel3205;
+const Intel4001 = @import("../chips/4001.zig").Intel4001;
+const Intel4002 = @import("../chips/4002.zig").Intel4002;
+const Intel4003 = @import("../chips/4003.zig").Intel4003;
+const Intel4004 = @import("../chips/4004.zig").Intel4004;
+const Intel3205 = @import("../chips/3205.zig").Intel3205;
 
 const Controller = @import("controller.zig").Controller;
 const Display = @import("display.zig").Display;
 
-const TIMING = @import("enum.zig").TIMING;
-const Clock = @import("4801.zig");
+const TIMING = @import("../chips/internals/enum.zig").TIMING;
+const Clock = @import("../chips/4801.zig");
 
 const ChipType = enum(u8) { CPU, ROM, RAM, DECODER, CONTROLLER, SHIFT_REG, DISPLAY };
+
+const ROM_SIZE: usize = 0x100;
+pub fn copyROM(dest: *[ROM_SIZE]u8, source: []u8) void {
+    const s: []u8 = source;
+    var i: u16 = 0;
+    while (i < ROM_SIZE) {
+        dest[i] = s[i];
+        i += 1;
+    }
+}
 
 pub const Motherboard = struct {
     // Simulation variables
@@ -85,58 +93,59 @@ pub const Motherboard = struct {
     }
 
     fn get_controller_input_linux(self: *Motherboard) bool {
-        const linux = std.os.linux;
-        const tty_fd = self.tty_file.handle;
+        _ = self;
+        // const linux = std.os.linux;
+        // const tty_fd = self.tty_file.handle;
 
-        var old_settings: linux.termios = undefined;
-        _ = linux.tcgetattr(tty_fd, &old_settings);
+        // var old_settings: linux.termios = undefined;
+        // _ = linux.tcgetattr(tty_fd, &old_settings);
 
-        var new_settings: linux.termios = old_settings;
-        new_settings.lflag.ICANON = false;
-        new_settings.lflag.ECHO = false;
+        // var new_settings: linux.termios = old_settings;
+        // new_settings.lflag.ICANON = false;
+        // new_settings.lflag.ECHO = false;
 
-        _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &new_settings);
+        // _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &new_settings);
 
-        var is_non_alphanum_key: bool = false;
-        var is_non_alphanum_key2: bool = false;
-        var did_have_non_alphanum_key: bool = false;
-        while (true) {
-            const key: u8 = reader.readByte() catch break;
+        // var is_non_alphanum_key: bool = false;
+        // var is_non_alphanum_key2: bool = false;
+        // var did_have_non_alphanum_key: bool = false;
+        // while (true) {
+        //     const key: u8 = reader.readByte() catch break;
 
-            if (is_non_alphanum_key2) {
-                did_have_non_alphanum_key = true;
-                if (key == 'C') { // right
-                    if (self.r != 0x1F) self.r += 1 else self.r = 0;
-                    return true;
-                }
-                if (key == 'D') {
-                    if (self.r != 0) self.r -= 1 else self.r = 0x1F;
-                    return true;
-                }
-            }
+        //     if (is_non_alphanum_key2) {
+        //         did_have_non_alphanum_key = true;
+        //         if (key == 'C') { // right
+        //             if (self.r != 0x1F) self.r += 1 else self.r = 0;
+        //             return true;
+        //         }
+        //         if (key == 'D') {
+        //             if (self.r != 0) self.r -= 1 else self.r = 0x1F;
+        //             return true;
+        //         }
+        //     }
 
-            if (is_non_alphanum_key) {
-                is_non_alphanum_key2 = (key == '[');
-            } else {
-                is_non_alphanum_key = (key == 27);
-                if (is_non_alphanum_key) continue;
+        //     if (is_non_alphanum_key) {
+        //         is_non_alphanum_key2 = (key == '[');
+        //     } else {
+        //         is_non_alphanum_key = (key == 27);
+        //         if (is_non_alphanum_key) continue;
 
-                for (&self.keysPressed) |*keyPressed| {
-                    keyPressed.* = false;
-                }
+        //         for (&self.keysPressed) |*keyPressed| {
+        //             keyPressed.* = false;
+        //         }
 
-                if (key == 'w') self.keysPressed[0] = true;
-                if (key == 'a') self.keysPressed[1] = true;
-                if (key == 's') self.keysPressed[2] = true;
-                if (key == 'd') self.keysPressed[3] = true;
-                if (key == 'e') self.keysPressed[4] = true;
-                if (key == 'q') self.keysPressed[5] = true;
-                if (key == ';') self.keysPressed[6] = true;
-                if (key == '\'') self.keysPressed[7] = true;
-            }
-        }
+        //         if (key == 'w') self.keysPressed[0] = true;
+        //         if (key == 'a') self.keysPressed[1] = true;
+        //         if (key == 's') self.keysPressed[2] = true;
+        //         if (key == 'd') self.keysPressed[3] = true;
+        //         if (key == 'e') self.keysPressed[4] = true;
+        //         if (key == 'q') self.keysPressed[5] = true;
+        //         if (key == ';') self.keysPressed[6] = true;
+        //         if (key == '\'') self.keysPressed[7] = true;
+        //     }
+        // }
 
-        _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &old_settings);
+        // _ = linux.tcsetattr(tty_fd, linux.TCSA.NOW, &old_settings);
 
         return false;
     }
@@ -151,10 +160,10 @@ pub const Motherboard = struct {
             }
         }
 
-        var list = std.ArrayList(u8).init(gpa_alloc);
-        defer list.deinit();
+        var list = try std.ArrayList(u8).initCapacity(gpa_alloc, 0x2000);
+        defer list.deinit(gpa_alloc);
 
-        const writer = list.writer();
+        const writer = list.writer(gpa_alloc);
         try writer.print("\n-----------------------------------------------------------\n", .{});
 
         try writer.print("| INSTR: 0x{X:0>2} |   ROM 0x{X:0>4}   | STACK: 0x{X:0>3} 0x{X:0>3} 0x{X:0>3} |\n", .{ self.cpu.instr, @as(u16, self.cpu.stack[0]) + (@as(u16, self.bank) << 12), self.cpu.stack[1], self.cpu.stack[2], self.cpu.stack[3] });
@@ -482,7 +491,7 @@ pub const Motherboard = struct {
 
             _ = try file.read(readROM);
             var rom: [0x100]u8 = undefined;
-            romcopy.copyROM(&rom, readROM);
+            copyROM(&rom, readROM);
             self.roms[i] = try Intel4001.init(@truncate(i), &rom);
             i += 1;
         }

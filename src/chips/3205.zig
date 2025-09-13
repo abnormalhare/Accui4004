@@ -1,4 +1,4 @@
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 
 pub const Intel3205 = struct {
     in: u3,

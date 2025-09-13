@@ -1,10 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const alloc = @import("root.zig").alloc;
-const Motherboard = @import("motherboard.zig").Motherboard;
-const Clock = @import("4801.zig");
+const Motherboard = @import("cons/motherboard.zig").Motherboard;
+const Clock = @import("chips/4801.zig");
 
 pub var comp: *Motherboard = undefined;
+pub const alloc = std.heap.c_allocator;
 
 pub fn main() !void {
     // startup

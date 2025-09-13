@@ -1,8 +1,8 @@
 const std = @import("std");
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 
 const Clock = @import("4801.zig");
-const TIMING = @import("enum.zig").TIMING;
+const TIMING = @import("internals/enum.zig").TIMING;
 
 pub const Intel4003 = struct {
     data_in: u1,

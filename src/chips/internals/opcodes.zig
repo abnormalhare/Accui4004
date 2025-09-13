@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Intel4004 = @import("4004.zig").Intel4004;
+const Intel4004 = @import("../4004.zig").Intel4004;
 const TIMING = @import("enum.zig").TIMING;
 
 const opfunc = *const fn (self: *Intel4004) void;

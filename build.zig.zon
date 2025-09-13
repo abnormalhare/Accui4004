@@ -37,8 +37,8 @@
     // internet connectivity.
     .dependencies = .{
         .Zeys = .{
-            .url = "https://github.com/rullo24/Zeys/archive/refs/tags/v1.1.0.tar.gz",
-            .hash = "1220e2608150f5e83773561737bc4d91bf326c45b727451800d04b89a89f9c3b5ee4",
+            .url = "https://github.com/rullo24/Zeys/archive/refs/tags/v1.3.0.tar.gz",
+            .hash = "Zeys-1.3.0-apiTV_enAAB6h2u3tLvyokvaaI2HyDk_WNf__1ch38K8",
         },
     },
 

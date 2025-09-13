@@ -1,10 +1,10 @@
 const std = @import("std");
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 
 const Clock = @import("4801.zig");
-const TIMING = @import("enum.zig").TIMING;
-const incStep = @import("enum.zig").incStep;
-const op_list = @import("opcodes.zig").op_list;
+const TIMING = @import("internals/enum.zig").TIMING;
+const incStep = @import("internals/enum.zig").incStep;
+const op_list = @import("internals/opcodes.zig").op_list;
 
 pub const Intel4004 = struct {
     buffer: u4,

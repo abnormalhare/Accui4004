@@ -1,10 +1,10 @@
 const std = @import("std");
-const alloc = @import("root.zig").alloc;
+const alloc = @import("../main.zig").alloc;
 const zeys = @import("zeys");
 
 const Clock = @import("4801.zig");
-const TIMING = @import("enum.zig").TIMING;
-const incStep = @import("enum.zig").incStep;
+const TIMING = @import("internals/enum.zig").TIMING;
+const incStep = @import("internals/enum.zig").incStep;
 
 pub const Intel4001 = struct {
     chip_num: u4,
