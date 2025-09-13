@@ -8,6 +8,6 @@ The ROM contains 4 IO pins for use with RAM. An SRC instruction can send a speci
 
 ## How can I program for it?
 Hold your horses, you don't even know what the CPU's instructions are. Let's learn the specifics of the 4004.  
-- *note: if you simply want to run programs, you can skip to [Using the emulator](7_Using-The-Emulator.md), however, I still suggest reading everything.*
+- *note: if you simply want to run programs, you can skip to [Using the emulator](8_Using-The-Emulator.md), however, I still suggest reading everything.*
 
 [Next](2_Intel-4004.md)
