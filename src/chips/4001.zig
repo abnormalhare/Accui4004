@@ -69,7 +69,7 @@ pub const Intel4001 = struct {
                 TIMING.A1 => self.checkROM(self.buffer),
                 TIMING.A2 => self.address = @as(u8, self.buffer) << 4,
                 TIMING.A3 => self.address += @as(u8, self.buffer) << 0,
-                TIMING.M2 => self.setExec(@truncate(self.buffer)),
+                TIMING.M2 => self.instr = self.buffer,
                 TIMING.X2 => if (self.cm == 1) self.checkIO(self.buffer),
             }
             incStep(&self.step);
@@ -84,18 +84,14 @@ pub const Intel4001 = struct {
         self.is_io_chip = (self.chip_num == num);
     }
 
-    fn setExec(self: *Intel4001, num: u4) void {
-        self.instr = num;
-    }
-
     fn getData(self: *Intel4001, step: u8) void {
         if (!self.is_chip) return;
 
         if (step == 0) {
             self.buffer = @truncate(self.rom[@as(u32, self.address)] >> 4);
+            self.execute = (self.buffer == 0xE);
         } else if (step == 1) {
             self.buffer = @truncate(self.rom[@as(u32, self.address)] >> 0);
-            self.execute = (self.buffer == 0xE);
         }
     }
 

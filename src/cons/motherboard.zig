@@ -1,6 +1,6 @@
 const std = @import("std");
 const alloc = @import("../main.zig").alloc;
-const zeys = @import("zeys"); // if (builtin.target.os.tag == .windows) @import("zeys") else @import("zeys.zig");
+const zeys = @import("zeys");
 const builtin = @import("builtin");
 
 const Intel4001 = @import("../chips/4001.zig").Intel4001;
@@ -189,17 +189,11 @@ pub const Motherboard = struct {
             self.cpu.cm,
         });
         try writer.print("|-----------------------|----------------| CMRAM: {b:0>4}    | |----------|\n", .{self.cpu.cmram});
-
         try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |   SHIFT REGS   |----------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[0], self.cpu.reg[1], self.cpu.reg[2], self.cpu.reg[3], self.display.disp[0][0], self.display.disp[0][1], self.display.disp[0][2], self.display.disp[0][3], self.display.disp[0][4], self.display.disp[0][5], self.display.disp[0][6], self.display.disp[0][7] });
-
-        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {X:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], self.shift_regs[0].buffer, self.display.disp[1][0], self.display.disp[1][1], self.display.disp[1][2], self.display.disp[1][3], self.display.disp[1][4], self.display.disp[1][5], self.display.disp[1][6], self.display.disp[1][7] });
-
-        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {X:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], self.shift_regs[1].buffer, self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7], self.display.disp[2][0], self.display.disp[2][1], self.display.disp[2][2], self.display.disp[2][3], self.display.disp[2][4], self.display.disp[2][5], self.display.disp[2][6], self.display.disp[2][7] });
-
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 0 {b:0>10}   |    DECODER     | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[4], self.cpu.reg[5], self.cpu.reg[6], self.cpu.reg[7], self.shift_regs[0].buffer, self.display.disp[1][0], self.display.disp[1][1], self.display.disp[1][2], self.display.disp[1][3], self.display.disp[1][4], self.display.disp[1][5], self.display.disp[1][6], self.display.disp[1][7] });
+        try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       | 1 {b:0>10}   |    {b}{b}{b}{b}{b}{b}{b}{b}    | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[8], self.cpu.reg[9], self.cpu.reg[10], self.cpu.reg[11], self.shift_regs[1].buffer, self.decoder.out[0], self.decoder.out[1], self.decoder.out[2], self.decoder.out[3], self.decoder.out[4], self.decoder.out[5], self.decoder.out[6], self.decoder.out[7], self.display.disp[2][0], self.display.disp[2][1], self.display.disp[2][2], self.display.disp[2][3], self.display.disp[2][4], self.display.disp[2][5], self.display.disp[2][6], self.display.disp[2][7] });
         try writer.print("| 0x{X:0>1} 0x{X:0>1} 0x{X:0>1} 0x{X:0>1}       |                |                | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.cpu.reg[12], self.cpu.reg[13], self.cpu.reg[14], self.cpu.reg[15], self.display.disp[3][0], self.display.disp[3][1], self.display.disp[3][2], self.display.disp[3][3], self.display.disp[3][4], self.display.disp[3][5], self.display.disp[3][6], self.display.disp[3][7] });
-
         try writer.print("|---------------------------------------------------------| | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.display.disp[4][0], self.display.disp[4][1], self.display.disp[4][2], self.display.disp[4][3], self.display.disp[4][4], self.display.disp[4][5], self.display.disp[4][6], self.display.disp[4][7] });
-
         try writer.print("| ROM IO          | RAM IO          | RAM[{X:0>2}]             | | {b}{b}{b}{b}{b}{b}{b}{b} |\n", .{ self.r, self.display.disp[5][0], self.display.disp[5][1], self.display.disp[5][2], self.display.disp[5][3], self.display.disp[5][4], self.display.disp[5][5], self.display.disp[5][6], self.display.disp[5][7] });
 
         var i: u8 = 0;
